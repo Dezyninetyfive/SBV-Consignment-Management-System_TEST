@@ -1,7 +1,5 @@
 
-
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { SaleRecord, StockMovement, MovementType } from '../types';
 import { Search, Filter, Download, Upload, Trash2, Edit2, Calendar, ChevronLeft, ChevronRight, CheckSquare, Square, ArrowUpDown, ArrowUp, ArrowDown, Store, ArrowLeft, DollarSign, History, ArrowUpRight, ArrowDownLeft, PlusCircle } from 'lucide-react';
 import { SAMPLE_BRANDS } from '../constants';
@@ -17,9 +15,10 @@ interface Props {
   onDeleteRecord: (id: string) => void;
   onBulkDelete?: (ids: string[]) => void;
   onRecordTransaction?: (data: { date: string, type: MovementType, storeId: string, productId: string, variant: string, quantity: number, reference: string }) => void;
-  onTransactionTransfer?: (data: any) => void; // Pass transfer handler if needed, though usually handled via onRecordTransaction for individual legs or unified modal
-  stores?: any[]; // Passed for transaction modal
-  products?: any[]; // Passed for transaction modal
+  onTransactionTransfer?: (data: any) => void; 
+  stores?: any[]; 
+  products?: any[];
+  targetStore?: string | null; // New prop for drill-down
 }
 
 type SortKey = 'date' | 'brand' | 'counter' | 'amount' | 'sku' | 'type' | 'quantity';
@@ -27,7 +26,7 @@ type SortDirection = 'asc' | 'desc';
 
 export const DataManagement: React.FC<Props> = ({ 
   history, movements = [], onImportClick, onEditRecord, onDeleteRecord, onBulkDelete,
-  onRecordTransaction, stores = [], products = []
+  onRecordTransaction, stores = [], products = [], targetStore
 }) => {
   // Data Source Switcher
   const [dataSource, setDataSource] = useState<'sales' | 'movements'>('sales');
@@ -35,6 +34,15 @@ export const DataManagement: React.FC<Props> = ({
   // Navigation State
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
+
+  // Auto-select store if targetStore is provided
+  useEffect(() => {
+    if (targetStore) {
+      setSelectedStore(targetStore);
+      setViewMode('detail');
+      setDataSource('sales'); // Default to sales history view for drill down
+    }
+  }, [targetStore]);
 
   // Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -237,6 +245,103 @@ export const DataManagement: React.FC<Props> = ({
   const movementTypes = ['Sale', 'Restock', 'Transfer In', 'Transfer Out', 'Adjustment', 'Return'];
 
   // --- Render ---
+
+  if (viewMode === 'detail' && selectedStore) {
+    return (
+      <div className="space-y-6 animate-in slide-in-from-right duration-300">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={handleBackToList}
+            className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 hover:text-indigo-600 transition-colors shadow-sm"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">{selectedStore}</h2>
+            <p className="text-slate-500">Transaction History & Performance</p>
+          </div>
+        </div>
+
+        {/* Store Detail Stats */}
+        {storeStats && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-xs text-slate-500 uppercase font-bold mb-1">Total Revenue (All Time)</p>
+                <p className="text-2xl font-bold text-indigo-900">{formatCurrency(storeStats.totalRevenue)}</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-xs text-slate-500 uppercase font-bold mb-1">Top Selling Brand</p>
+                <p className="text-2xl font-bold text-slate-700">{storeStats.topBrand}</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-xs text-slate-500 uppercase font-bold mb-1">Best Month</p>
+                <p className="text-2xl font-bold text-emerald-600">{storeStats.bestMonth}</p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <p className="text-xs text-slate-500 uppercase font-bold mb-1">Transaction Count</p>
+                <p className="text-2xl font-bold text-slate-700">{storeStats.recordCount}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Detail Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+           <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+              <h3 className="font-bold text-slate-700">Detailed Sales Log</h3>
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded text-xs font-medium hover:bg-slate-50"
+              >
+                <Download size={14} /> Export
+              </button>
+           </div>
+           <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-slate-600">
+                 <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
+                    <tr>
+                       <th className="px-6 py-3">Date</th>
+                       <th className="px-6 py-3">Brand</th>
+                       <th className="px-6 py-3 text-right">Amount</th>
+                       <th className="px-6 py-3 text-right">Actions</th>
+                    </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100">
+                    {currentData.map((record: any) => (
+                       <tr key={record.id} className="hover:bg-slate-50 group">
+                          <td className="px-6 py-3">{record.date}</td>
+                          <td className="px-6 py-3">
+                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border
+                                    ${record.brand === 'Domino' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
+                                    record.brand === 'OTTO' ? 'bg-pink-50 text-pink-700 border-pink-100' :
+                                    'bg-amber-50 text-amber-700 border-amber-100'
+                                    }
+                                `}>
+                                {record.brand}
+                             </span>
+                          </td>
+                          <td className="px-6 py-3 text-right font-medium text-slate-800">{formatCurrency(record.amount)}</td>
+                          <td className="px-6 py-3 text-right">
+                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => onEditRecord(record)} className="text-indigo-600 hover:bg-indigo-50 p-1 rounded"><Edit2 size={14}/></button>
+                                <button onClick={() => triggerSingleDelete(record.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14}/></button>
+                             </div>
+                          </td>
+                       </tr>
+                    ))}
+                 </tbody>
+              </table>
+           </div>
+           {/* Pagination for Detail View */}
+           {processedData.length > itemsPerPage && (
+              <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+                 <button onClick={() => setCurrentPage(p => Math.max(1, p-1))} disabled={currentPage===1} className="p-1 rounded bg-white border border-slate-200 disabled:opacity-50"><ChevronLeft size={16}/></button>
+                 <button onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} disabled={currentPage===totalPages} className="p-1 rounded bg-white border border-slate-200 disabled:opacity-50"><ChevronRight size={16}/></button>
+              </div>
+           )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

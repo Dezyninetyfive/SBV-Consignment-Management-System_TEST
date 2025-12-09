@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { SaleRecord, ForecastResponse, StoreProfile, PlanningConfig, Product, InventoryItem, Invoice, PaymentRecord, StockMovement, MovementType } from './types';
 import { generateMockHistory, generateMockStores, generateMockProducts, generateMockInventory, generateMockInvoices, generateMockStockMovements } from './utils/dataUtils';
@@ -9,6 +7,7 @@ import { MetricsGrid } from './components/MetricsGrid';
 import { ChartsSection } from './components/ChartsSection';
 import { SalesIntelligence } from './components/SalesIntelligence';
 import { DashboardARSummary } from './components/DashboardARSummary';
+import { DashboardKPIs } from './components/DashboardKPIs';
 import { AddRecordModal } from './components/AddRecordModal';
 import { StoreNetwork } from './components/StoreNetwork';
 import { StoreModal } from './components/StoreModal';
@@ -54,6 +53,9 @@ const App: React.FC = () => {
   // Data Management States
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importType, setImportType] = useState<'sales' | 'stores' | 'products' | 'inventory' | 'invoices' | 'stock_movements'>('sales');
+  
+  // Drill-down State
+  const [drillDownStore, setDrillDownStore] = useState<string | null>(null);
 
   // Initialize Data
   useEffect(() => {
@@ -123,6 +125,11 @@ const App: React.FC = () => {
 
   // --- Handlers ---
 
+  const handleDrillDown = (storeName: string) => {
+    setDrillDownStore(storeName);
+    setView('data');
+  };
+
   const handleGenerateForecast = async () => {
     setLoading(true);
     setError(null);
@@ -189,6 +196,7 @@ const App: React.FC = () => {
   // --- Record Management ---
 
   const handleAddOrUpdateRecord = (record: SaleRecord) => {
+    // 1. Update History State
     setHistory((prev) => {
       const exists = prev.some(r => r.id === record.id);
       let updated;
@@ -199,17 +207,81 @@ const App: React.FC = () => {
       }
       return updated.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     });
+
+    // 2. Sync with Accounts Receivable (Generate/Update Invoice)
+    const store = stores.find(s => s.name === record.counter);
+    if (store) {
+      // Calculate Net Invoice Amount (Sales - Margin)
+      const marginPercent = store.margins?.[record.brand] ?? 25; // Default 25% if not set
+      const netAmount = record.amount * (1 - (marginPercent / 100));
+      
+      const invId = `inv-auto-${record.id}`; // Deterministic ID linked to sales record
+      
+      // Calculate Due Date based on store terms
+      const dueDate = new Date(record.date);
+      dueDate.setDate(dueDate.getDate() + (store.creditTerm || 30));
+
+      setInvoices(prev => {
+        const existingInvIndex = prev.findIndex(i => i.id === invId);
+        
+        if (existingInvIndex > -1) {
+          // Update existing invoice
+          const existingInv = prev[existingInvIndex];
+          const newStatus = existingInv.paidAmount >= netAmount ? 'Paid' : (existingInv.paidAmount > 0 ? 'Partial' : 'Unpaid');
+          
+          const updatedInv: Invoice = {
+            ...existingInv,
+            amount: netAmount,
+            issueDate: record.date,
+            dueDate: dueDate.toISOString().split('T')[0],
+            storeId: store.id, // Update in case store changed
+            storeName: store.name,
+            brand: record.brand,
+            status: newStatus // Recalculate status
+          };
+          
+          const newInvoices = [...prev];
+          newInvoices[existingInvIndex] = updatedInv;
+          return newInvoices;
+        } else {
+          // Create new invoice
+          const newInv: Invoice = {
+            id: invId,
+            storeId: store.id,
+            storeName: store.name,
+            brand: record.brand,
+            amount: netAmount,
+            paidAmount: 0,
+            issueDate: record.date,
+            dueDate: dueDate.toISOString().split('T')[0],
+            status: 'Unpaid',
+            payments: []
+          };
+          return [...prev, newInv];
+        }
+      });
+    }
+
     setIsAddRecordModalOpen(false);
     setRecordToEdit(null);
   };
 
   const handleDeleteRecord = (id: string) => {
+    // 1. Remove from Sales History
     setHistory(prev => prev.filter(r => r.id !== id));
+    
+    // 2. Remove linked Auto-Invoice from AR
+    setInvoices(prev => prev.filter(inv => inv.id !== `inv-auto-${id}`));
   };
 
   const handleBulkDeleteRecords = (ids: string[]) => {
     const set = new Set(ids);
+    // 1. Remove from History
     setHistory(prev => prev.filter(r => !set.has(r.id)));
+    
+    // 2. Remove linked Invoices
+    const invoiceIdsToRemove = new Set(ids.map(id => `inv-auto-${id}`));
+    setInvoices(prev => prev.filter(inv => !invoiceIdsToRemove.has(inv.id)));
   };
 
   const handleEditRecordClick = (record: SaleRecord) => {
@@ -874,6 +946,7 @@ const App: React.FC = () => {
             onRecordTransaction={handleRecordStockTransaction}
             stores={stores}
             products={products}
+            targetStore={drillDownStore}
           />
         )}
         
@@ -1036,8 +1109,22 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* NEW: Operational KPIs */}
+              <DashboardKPIs 
+                history={history}
+                planningData={planningData}
+                inventory={inventory}
+                movements={movements}
+                products={products}
+                onStoreClick={handleDrillDown}
+              />
+
               {/* NEW: Sales Intelligence Section */}
-              <SalesIntelligence history={history} stores={stores} />
+              <SalesIntelligence 
+                history={history} 
+                stores={stores} 
+                onStoreClick={handleDrillDown}
+              />
 
               <ChartsSection 
                 history={history} 

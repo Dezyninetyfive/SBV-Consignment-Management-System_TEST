@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { SaleRecord, StoreProfile } from '../types';
 import { aggregateSalesByDimension, formatCurrency } from '../utils/dataUtils';
@@ -8,9 +9,10 @@ import { CHART_COLORS } from '../constants';
 interface Props {
   history: SaleRecord[];
   stores: StoreProfile[];
+  onStoreClick?: (storeName: string) => void;
 }
 
-export const SalesIntelligence: React.FC<Props> = ({ history, stores }) => {
+export const SalesIntelligence: React.FC<Props> = ({ history, stores, onStoreClick }) => {
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
   const salesByRegion = useMemo(() => aggregateSalesByDimension(history, stores, 'region'), [history, stores]);
@@ -180,7 +182,11 @@ export const SalesIntelligence: React.FC<Props> = ({ history, stores }) => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {storeRankings.map((store, idx) => (
-                <tr key={store.name} className="hover:bg-slate-50 transition-colors">
+                <tr 
+                  key={store.name} 
+                  className={`transition-colors ${onStoreClick ? 'cursor-pointer hover:bg-indigo-50/50' : 'hover:bg-slate-50'}`}
+                  onClick={() => onStoreClick && onStoreClick(store.name)}
+                >
                   <td className="px-6 py-3 font-medium text-slate-900 flex items-center gap-2">
                     <span className={`
                       flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold
@@ -188,7 +194,9 @@ export const SalesIntelligence: React.FC<Props> = ({ history, stores }) => {
                     `}>
                       {idx + 1}
                     </span>
-                    {store.name}
+                    <span className={onStoreClick ? 'text-indigo-600 hover:underline' : ''}>
+                      {store.name}
+                    </span>
                   </td>
                   <td className="px-6 py-3">{store.group}</td>
                   <td className="px-6 py-3">{store.region}</td>
