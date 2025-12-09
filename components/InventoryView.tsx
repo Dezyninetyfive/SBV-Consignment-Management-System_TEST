@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { Product, InventoryItem, StoreProfile, StockMovement } from '../types';
-import { Search, Package, Tag, Filter, Grid, List, Layers, Plus, ArrowRightLeft, Edit, AlertTriangle, X, Download, Upload, Image as ImageIcon, ArrowUpDown, History, BarChart2 } from 'lucide-react';
+import { Product, InventoryItem, StoreProfile, StockMovement, MovementType } from '../types';
+import { Search, Package, Tag, Filter, Grid, List, Layers, Plus, Edit, AlertTriangle, X, Download, Upload, Image as ImageIcon, ArrowUpDown, History, BarChart2 } from 'lucide-react';
 import { formatCurrency } from '../utils/dataUtils';
 import { SAMPLE_BRANDS, PRODUCT_CATEGORIES } from '../constants';
 import { ProductForm } from './ProductForm';
@@ -9,21 +9,23 @@ import { ProductDetailModal } from './ProductDetailModal';
 import { StoreStockModal } from './StoreStockModal';
 import { StockMovementLog } from './StockMovementLog';
 import { ProductAnalytics } from './ProductAnalytics';
+import { TransactionFormModal } from './TransactionFormModal';
 
 interface Props {
   products: Product[];
   inventory: InventoryItem[];
   stores: StoreProfile[];
-  movements: StockMovement[]; // NEW prop
+  movements: StockMovement[];
   onAddProduct: (p: Product) => void;
   onUpdateProduct: (p: Product) => void;
-  onTransferStock: (fromStoreId: string, toStoreId: string, productId: string, qty: number) => void;
+  onTransferStock: (fromStoreId: string, toStoreId: string, productId: string, variant: string, qty: number, reference: string, date: string) => void;
   onImportClick: (type: 'products' | 'inventory') => void;
+  onRecordTransaction: (data: { date: string, type: MovementType, storeId: string, productId: string, variant: string, quantity: number, reference: string }) => void;
 }
 
 export const InventoryView: React.FC<Props> = ({ 
     products, inventory, stores, movements,
-    onAddProduct, onUpdateProduct, onTransferStock, onImportClick 
+    onAddProduct, onUpdateProduct, onTransferStock, onImportClick, onRecordTransaction
 }) => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'stock' | 'movement' | 'analytics'>('catalog');
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'gallery'>('grid');
@@ -39,11 +41,8 @@ export const InventoryView: React.FC<Props> = ({
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [viewingStoreItems, setViewingStoreItems] = useState<{ name: string, items: InventoryItem[] } | null>(null);
   const [viewingProductDetail, setViewingProductDetail] = useState<Product | null>(null);
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   
-  // Transfer State
-  const [isTransferMode, setIsTransferMode] = useState(false);
-  const [transferData, setTransferData] = useState({ fromId: '', toId: '', productId: '', qty: 1 });
-
   // --- Logic ---
 
   const filteredProducts = useMemo(() => {
@@ -101,11 +100,8 @@ export const InventoryView: React.FC<Props> = ({
      if (p) setViewingProductDetail(p);
   };
 
-  const handleTransferSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onTransferStock(transferData.fromId, transferData.toId, transferData.productId, transferData.qty);
-    setIsTransferMode(false);
-    setTransferData({ fromId: '', toId: '', productId: '', qty: 1 });
+  const handleTransferSubmit = (data: { date: string, fromStoreId: string, toStoreId: string, productId: string, variant: string, quantity: number, reference: string }) => {
+    onTransferStock(data.fromStoreId, data.toStoreId, data.productId, data.variant, data.quantity, data.reference, data.date);
   };
 
   const handleExportProducts = () => {
@@ -241,15 +237,6 @@ export const InventoryView: React.FC<Props> = ({
                      </button>
                 </div>
              )}
-
-             {activeTab === 'stock' && (
-                <button 
-                   onClick={() => setIsTransferMode(true)}
-                   className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium shadow-sm transition-colors"
-                >
-                    <ArrowRightLeft size={16} /> Transfer Stock
-                </button>
-            )}
             
             {activeTab === 'catalog' && (
                 <div className="flex items-center gap-2">
@@ -306,9 +293,12 @@ export const InventoryView: React.FC<Props> = ({
                                     <td className="px-6 py-4">{product.category}</td>
                                     <td className="px-6 py-4">
                                          <div className="flex flex-wrap gap-1">
-                                            {product.variants.map(v => (
+                                            {product.variants.slice(0, 3).map(v => (
                                                 <span key={v} className="px-1.5 py-0.5 bg-slate-100 rounded text-xs text-slate-600 border border-slate-200">{v}</span>
                                             ))}
+                                            {product.variants.length > 3 && (
+                                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-xs text-slate-500">+{product.variants.length - 3}</span>
+                                            )}
                                          </div>
                                     </td>
                                     <td className="px-6 py-4 text-right font-mono">{formatCurrency(product.cost)}</td>
@@ -457,7 +447,10 @@ export const InventoryView: React.FC<Props> = ({
 
       {/* === VIEW: MOVEMENT LOG === */}
       {activeTab === 'movement' && (
-         <StockMovementLog movements={movements} />
+         <StockMovementLog 
+           movements={movements} 
+           onAddTransaction={() => setIsTransactionModalOpen(true)}
+         />
       )}
 
       {/* === VIEW: ANALYTICS === */}
@@ -471,6 +464,8 @@ export const InventoryView: React.FC<Props> = ({
          onClose={() => setIsProductFormOpen(false)}
          onSave={editingProduct ? onUpdateProduct : onAddProduct}
          productToEdit={editingProduct}
+         inventory={inventory} // PASSING INVENTORY
+         stores={stores} // PASSING STORES
       />
 
       {/* Product Detail Modal */}
@@ -485,72 +480,6 @@ export const InventoryView: React.FC<Props> = ({
         }}
       />
 
-      {/* Transfer Stock Modal */}
-      {isTransferMode && (
-         <div className="fixed inset-0 z-[140] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsTransferMode(false)} />
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95">
-               <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                   <ArrowRightLeft className="text-indigo-600" size={20} />
-                   Stock Transfer
-               </h3>
-               <form onSubmit={handleTransferSubmit} className="space-y-4">
-                  <div>
-                      <label className="text-xs font-semibold text-slate-500 uppercase block mb-1">From Store</label>
-                      <select 
-                        required
-                        className="w-full p-2 border border-slate-200 rounded-lg text-sm"
-                        value={transferData.fromId}
-                        onChange={(e) => setTransferData({...transferData, fromId: e.target.value})}
-                      >
-                         <option value="">Select Source...</option>
-                         {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                  </div>
-                  <div>
-                      <label className="text-xs font-semibold text-slate-500 uppercase block mb-1">To Store</label>
-                      <select 
-                        required
-                        className="w-full p-2 border border-slate-200 rounded-lg text-sm"
-                        value={transferData.toId}
-                        onChange={(e) => setTransferData({...transferData, toId: e.target.value})}
-                      >
-                         <option value="">Select Destination...</option>
-                         {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                  </div>
-                  <div>
-                      <label className="text-xs font-semibold text-slate-500 uppercase block mb-1">Product</label>
-                      <select 
-                        required
-                        className="w-full p-2 border border-slate-200 rounded-lg text-sm"
-                        value={transferData.productId}
-                        onChange={(e) => setTransferData({...transferData, productId: e.target.value})}
-                      >
-                         <option value="">Select Product...</option>
-                         {products.map(p => <option key={p.id} value={p.id}>{p.sku} - {p.name}</option>)}
-                      </select>
-                  </div>
-                  <div>
-                      <label className="text-xs font-semibold text-slate-500 uppercase block mb-1">Quantity</label>
-                      <input 
-                         type="number"
-                         min="1"
-                         required
-                         className="w-full p-2 border border-slate-200 rounded-lg text-sm"
-                         value={transferData.qty}
-                         onChange={(e) => setTransferData({...transferData, qty: parseInt(e.target.value)})}
-                      />
-                  </div>
-                  <div className="flex gap-3 pt-2">
-                      <button type="button" onClick={() => setIsTransferMode(false)} className="flex-1 py-2 border rounded-lg hover:bg-slate-50">Cancel</button>
-                      <button type="submit" className="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Transfer</button>
-                  </div>
-               </form>
-            </div>
-         </div>
-      )}
-
       <StoreStockModal
         isOpen={!!viewingStoreItems}
         storeName={viewingStoreItems?.name || null}
@@ -558,6 +487,16 @@ export const InventoryView: React.FC<Props> = ({
         onClose={() => setViewingStoreItems(null)}
         onViewProduct={handleViewProductBySKU}
         products={products}
+      />
+      
+      {/* Transaction Modal (Combined with Transfer) */}
+      <TransactionFormModal 
+         isOpen={isTransactionModalOpen}
+         onClose={() => setIsTransactionModalOpen(false)}
+         stores={stores}
+         products={products}
+         onSubmit={onRecordTransaction}
+         onTransfer={handleTransferSubmit}
       />
 
     </div>

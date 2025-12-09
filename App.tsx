@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { SaleRecord, ForecastResponse, StoreProfile, PlanningConfig, Product, InventoryItem, Invoice, PaymentRecord, StockMovement } from './types';
+import { SaleRecord, ForecastResponse, StoreProfile, PlanningConfig, Product, InventoryItem, Invoice, PaymentRecord, StockMovement, MovementType } from './types';
 import { generateMockHistory, generateMockStores, generateMockProducts, generateMockInventory, generateMockInvoices, generateMockStockMovements } from './utils/dataUtils';
 import { generateForecast } from './services/geminiService';
 import { MetricsGrid } from './components/MetricsGrid';
@@ -295,10 +296,55 @@ const App: React.FC = () => {
   };
 
   const handleUpdateProduct = (p: Product) => {
-    setProducts(prev => prev.map(prod => prod.id === p.id ? p : prod));
+    setProducts(prev => {
+      // Find old product to detect name/sku changes for cascading
+      const oldProduct = prev.find(prod => prod.id === p.id);
+      
+      if (oldProduct) {
+         const nameChanged = oldProduct.name !== p.name;
+         const skuChanged = oldProduct.sku !== p.sku;
+         const brandChanged = oldProduct.brand !== p.brand;
+
+         // Cascade changes to inventory and movements if critical fields changed
+         if (nameChanged || skuChanged || brandChanged) {
+            setInventory(invPrev => invPrev.map(item => {
+               if (item.productId === p.id) {
+                  return {
+                     ...item,
+                     productName: p.name,
+                     sku: p.sku,
+                     brand: p.brand
+                  };
+               }
+               return item;
+            }));
+
+            setMovements(movPrev => movPrev.map(m => {
+               if (m.productId === p.id) {
+                  return {
+                     ...m,
+                     productName: p.name,
+                     sku: p.sku
+                  };
+               }
+               return m;
+            }));
+         }
+      }
+
+      return prev.map(prod => prod.id === p.id ? p : prod);
+    });
   };
 
-  const handleTransferStock = (fromStoreId: string, toStoreId: string, productId: string, qty: number) => {
+  const handleTransferStock = (
+    fromStoreId: string, 
+    toStoreId: string, 
+    productId: string, 
+    variant: string, 
+    qty: number, 
+    reference: string,
+    date: string
+  ) => {
     const product = products.find(p => p.id === productId);
     const sourceStore = stores.find(s => s.id === fromStoreId);
     const destStore = stores.find(s => s.id === toStoreId);
@@ -306,22 +352,43 @@ const App: React.FC = () => {
     if (!product || !sourceStore || !destStore) return;
 
     setInventory(prev => {
-      // Logic: find item in source, decrease. find/create in dest, increase.
       const newState = [...prev];
       const sourceIdx = newState.findIndex(i => i.storeId === fromStoreId && i.productId === productId);
       
-      if (sourceIdx === -1 || newState[sourceIdx].quantity < qty) {
-        alert("Insufficient stock in source store!");
+      if (sourceIdx === -1) {
+        alert("Source store does not have this product in inventory.");
         return prev;
       }
 
-      // Decrease Source
-      newState[sourceIdx] = { ...newState[sourceIdx], quantity: newState[sourceIdx].quantity - qty };
+      const sourceItem = newState[sourceIdx];
+      const currentVariantQty = sourceItem.variantQuantities?.[variant] || 0;
 
-      // Increase Dest
+      if (currentVariantQty < qty) {
+        alert(`Insufficient stock for variant "${variant}". Available: ${currentVariantQty}`);
+        return prev;
+      }
+
+      // 1. Decrease Source
+      const newSourceVariants = { ...sourceItem.variantQuantities };
+      newSourceVariants[variant] = currentVariantQty - qty;
+      newState[sourceIdx] = { 
+        ...sourceItem, 
+        quantity: sourceItem.quantity - qty,
+        variantQuantities: newSourceVariants
+      };
+
+      // 2. Increase Dest
       const destIdx = newState.findIndex(i => i.storeId === toStoreId && i.productId === productId);
       if (destIdx > -1) {
-         newState[destIdx] = { ...newState[destIdx], quantity: newState[destIdx].quantity + qty };
+         const destItem = newState[destIdx];
+         const newDestVariants = { ...(destItem.variantQuantities || {}) };
+         newDestVariants[variant] = (newDestVariants[variant] || 0) + qty;
+         
+         newState[destIdx] = { 
+           ...destItem, 
+           quantity: destItem.quantity + qty,
+           variantQuantities: newDestVariants
+         };
       } else {
          // Create new item entry
          newState.push({
@@ -333,38 +400,37 @@ const App: React.FC = () => {
             sku: product.sku,
             brand: product.brand,
             quantity: qty,
-            variantQuantities: {} // Simple transfer for now
+            variantQuantities: { [variant]: qty }
          });
       }
 
-      // Record Movements
-      const today = new Date().toISOString().split('T')[0];
+      // 3. Record Movements
       const newMovements: StockMovement[] = [
         {
           id: `mov-out-${Date.now()}`,
-          date: today,
+          date: date,
           type: 'Transfer Out',
           storeId: sourceStore.id,
           storeName: sourceStore.name,
           productId: product.id,
           productName: product.name,
           sku: product.sku,
-          variant: 'Standard',
+          variant: variant,
           quantity: -qty,
-          reference: `TR TO ${destStore.name}`
+          reference: reference || `TR TO ${destStore.name}`
         },
         {
           id: `mov-in-${Date.now()}`,
-          date: today,
+          date: date,
           type: 'Transfer In',
           storeId: destStore.id,
           storeName: destStore.name,
           productId: product.id,
           productName: product.name,
           sku: product.sku,
-          variant: 'Standard',
+          variant: variant,
           quantity: qty,
-          reference: `TR FROM ${sourceStore.name}`
+          reference: reference || `TR FROM ${sourceStore.name}`
         }
       ];
       setMovements(prevM => [...newMovements, ...prevM]);
@@ -372,6 +438,74 @@ const App: React.FC = () => {
       return newState;
     });
     alert("Stock Transfer Successful");
+  };
+
+  // General Stock Transaction Recorder (Manual Entry)
+  const handleRecordStockTransaction = (data: { date: string, type: MovementType, storeId: string, productId: string, variant: string, quantity: number, reference: string }) => {
+     const product = products.find(p => p.id === data.productId);
+     const store = stores.find(s => s.id === data.storeId);
+     
+     if (!product || !store) return;
+
+     // 1. Calculate signed quantity based on type (In vs Out)
+     let signedQty = data.quantity;
+     if (['Sale', 'Transfer Out'].includes(data.type)) {
+        signedQty = -Math.abs(data.quantity);
+     } else if (['Restock', 'Transfer In', 'Return'].includes(data.type)) {
+        signedQty = Math.abs(data.quantity);
+     }
+     
+     // 2. Add to Movement Log
+     const newMovement: StockMovement = {
+       id: `mov-${Date.now()}`,
+       date: data.date,
+       type: data.type,
+       storeId: store.id,
+       storeName: store.name,
+       productId: product.id,
+       productName: product.name,
+       sku: product.sku,
+       variant: data.variant,
+       quantity: signedQty,
+       reference: data.reference
+     };
+     setMovements(prev => [newMovement, ...prev]);
+
+     // 3. Update Inventory
+     setInventory(prev => {
+        const newState = [...prev];
+        const existingIdx = newState.findIndex(i => i.storeId === data.storeId && i.productId === data.productId);
+
+        if (existingIdx > -1) {
+           const item = newState[existingIdx];
+           const newTotal = Math.max(0, item.quantity + signedQty);
+           
+           // Update Variant Quantities
+           const newVariants = { ...(item.variantQuantities || {}) };
+           const currentVarQty = newVariants[data.variant] || 0;
+           newVariants[data.variant] = Math.max(0, currentVarQty + signedQty);
+
+           newState[existingIdx] = { 
+             ...item, 
+             quantity: newTotal,
+             variantQuantities: newVariants
+           };
+        } else if (signedQty > 0) {
+           // Create new entry if adding stock
+           newState.push({
+             id: `inv-${store.id}-${product.id}`,
+             storeId: store.id,
+             storeName: store.name,
+             productId: product.id,
+             productName: product.name,
+             sku: product.sku,
+             brand: product.brand,
+             quantity: signedQty,
+             variantQuantities: { [data.variant]: signedQty }
+           });
+        }
+        return newState;
+     });
   };
 
   // --- AR Management ---
@@ -654,11 +788,12 @@ const App: React.FC = () => {
             products={products}
             inventory={inventory}
             stores={stores}
-            movements={movements} // Pass movements
+            movements={movements} 
             onAddProduct={handleAddProduct}
             onUpdateProduct={handleUpdateProduct}
             onTransferStock={handleTransferStock}
             onImportClick={openImportModal}
+            onRecordTransaction={handleRecordStockTransaction} 
           />
         )}
 

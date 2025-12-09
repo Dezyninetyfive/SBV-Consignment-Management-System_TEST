@@ -1,13 +1,14 @@
 
 import React, { useState, useMemo } from 'react';
 import { StockMovement } from '../types';
-import { Search, Filter, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle } from 'lucide-react';
+import { Search, Filter, ArrowUpRight, ArrowDownLeft, PlusCircle } from 'lucide-react';
 
 interface Props {
   movements: StockMovement[];
+  onAddTransaction?: () => void;
 }
 
-export const StockMovementLog: React.FC<Props> = ({ movements }) => {
+export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
 
@@ -29,8 +30,8 @@ export const StockMovementLog: React.FC<Props> = ({ movements }) => {
   return (
     <div className="space-y-4">
        <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-4 w-full sm:w-auto flex-1">
-             <div className="relative flex-1 max-w-xs">
+          <div className="flex flex-col md:flex-row gap-4 w-full sm:w-auto flex-1">
+             <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input 
                    type="text"
@@ -45,15 +46,27 @@ export const StockMovementLog: React.FC<Props> = ({ movements }) => {
                 <select 
                    value={filterType}
                    onChange={(e) => setFilterType(e.target.value)}
-                   className="pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 appearance-none"
+                   className="pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 appearance-none cursor-pointer"
                 >
                    <option value="All">All Types</option>
                    {movementTypes.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
              </div>
           </div>
-          <div className="text-xs text-slate-500">
-             Showing {filteredMovements.length} transactions
+          
+          <div className="flex items-center gap-2 sm:gap-4">
+             <div className="text-xs text-slate-500 hidden sm:block">
+               {filteredMovements.length} records
+             </div>
+             
+             {onAddTransaction && (
+               <button 
+                 onClick={onAddTransaction}
+                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm transition-colors whitespace-nowrap"
+               >
+                 <PlusCircle size={16} /> Record Transaction
+               </button>
+             )}
           </div>
        </div>
 
@@ -76,12 +89,11 @@ export const StockMovementLog: React.FC<Props> = ({ movements }) => {
                          <td className="px-6 py-4 font-mono text-xs">{m.date}</td>
                          <td className="px-6 py-4">
                             <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium border ${
-                               m.type === 'Sale' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
-                               m.type === 'Restock' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                               m.type === 'Return' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                               m.type === 'Sale' || m.type === 'Transfer Out' ? 'bg-red-50 text-red-700 border-red-100' :
+                               m.type === 'Restock' || m.type === 'Return' || m.type === 'Transfer In' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                                'bg-slate-50 text-slate-600 border-slate-100'
                             }`}>
-                               {m.quantity > 0 ? <ArrowDownLeft size={12} /> : <ArrowUpRight size={12} />}
+                               {m.quantity > 0 ? <ArrowUpRight size={12} /> : <ArrowDownLeft size={12} />}
                                {m.type}
                             </span>
                          </td>
@@ -90,7 +102,11 @@ export const StockMovementLog: React.FC<Props> = ({ movements }) => {
                          </td>
                          <td className="px-6 py-4">
                             <div className="text-slate-800 font-medium">{m.productName}</div>
-                            <div className="text-xs text-slate-400 font-mono">{m.sku} • {m.variant}</div>
+                            <div className="text-xs text-slate-400 font-mono flex gap-2">
+                               <span>{m.sku}</span>
+                               <span className="text-slate-300">|</span>
+                               <span className="text-indigo-600 font-medium">{m.variant}</span>
+                            </div>
                          </td>
                          <td className={`px-6 py-4 text-right font-bold ${m.quantity > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                             {m.quantity > 0 ? '+' : ''}{m.quantity}
