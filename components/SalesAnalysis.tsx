@@ -1,10 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { SaleRecord, PlanningConfig, StoreProfile } from '../types';
-import { formatCurrency, getMonthlyHistory } from '../utils/dataUtils';
+import { formatCurrency } from '../utils/dataUtils';
 import { SAMPLE_BRANDS } from '../constants';
-import { ChevronDown, ChevronRight, TrendingUp, Target, AlertCircle, Search, Filter, Calendar, FileText, LayoutList } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
+import { ChevronDown, ChevronRight, TrendingUp, Calendar, FileText, LayoutList, Filter, Search } from 'lucide-react';
+import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
 
 interface Props {
   history: SaleRecord[];
@@ -55,7 +55,7 @@ export const SalesAnalysis: React.FC<Props> = ({ history, planningData, stores }
             if (tDate === monthStr &&
                 (selectedBrand === 'All' || tBrand === selectedBrand) &&
                 (selectedStore === 'All' || tCounter === selectedStore)) {
-               target += val;
+               target += (val as number);
             }
          });
       }
@@ -150,7 +150,7 @@ export const SalesAnalysis: React.FC<Props> = ({ history, planningData, stores }
 
     // 2. Aggregate by Store + Brand
     const agg: Record<string, { store: StoreProfile, brand: string, gross: number }> = {};
-    const storeMap = new Map(stores.map(s => [s.name, s]));
+    const storeMap = new Map<string, StoreProfile>(stores.map(s => [s.name, s] as [string, StoreProfile]));
 
     records.forEach(r => {
       const key = `${r.counter}|${r.brand}`;
