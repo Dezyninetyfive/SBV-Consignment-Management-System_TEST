@@ -317,15 +317,39 @@ export const SalesAnalysis: React.FC<Props> = ({ history, planningData, stores }
                   <ResponsiveContainer width="100%" height="100%">
                      <ComposedChart data={monthData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                        <XAxis dataKey="monthName" tick={{fontSize: 12}} axisLine={false} tickLine={false} />
-                        <YAxis tick={{fontSize: 12}} tickFormatter={(val) => `$${val/1000}k`} axisLine={false} tickLine={false} />
+                        <XAxis dataKey="monthName" tick={{fontSize: 12, fill: '#64748B'}} axisLine={false} tickLine={false} />
+                        <YAxis tick={{fontSize: 12, fill: '#64748B'}} tickFormatter={(val) => `$${val/1000}k`} axisLine={false} tickLine={false} />
                         <Tooltip 
-                           formatter={(val: number) => formatCurrency(val)}
-                           contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                           cursor={{fill: '#F1F5F9'}}
+                           content={({ active, payload, label }) => {
+                               if (active && payload && payload.length) {
+                                   const actual = payload.find(p => p.name === 'Actual Sales')?.value as number || 0;
+                                   const target = payload.find(p => p.name === 'Target (Budget)')?.value as number || 0;
+                                   const ly = payload.find(p => p.name === 'Last Year')?.value as number || 0;
+                                   
+                                   return (
+                                       <div className="bg-white p-3 border border-slate-100 shadow-lg rounded-lg text-sm">
+                                           <p className="font-bold text-slate-800 mb-2">{label}</p>
+                                           <div className="space-y-1">
+                                               <p className="text-indigo-600 font-medium">Actual: {formatCurrency(actual)}</p>
+                                               <p className="text-amber-600 font-medium">Target: {formatCurrency(target)}</p>
+                                               {ly > 0 && <p className="text-slate-400">Last Year: {formatCurrency(ly)}</p>}
+                                               {target > 0 && (
+                                                   <div className={`pt-2 mt-2 border-t border-slate-100 font-bold ${actual >= target ? 'text-emerald-600' : 'text-red-500'}`}>
+                                                       {actual >= target ? 'On Track' : 'Missed'}: {((actual/target)*100).toFixed(1)}%
+                                                   </div>
+                                               )}
+                                           </div>
+                                       </div>
+                                   );
+                               }
+                               return null;
+                           }}
                         />
-                        <Legend />
-                        <Bar dataKey="actual" name="Actual Sales" fill="#6366F1" radius={[4, 4, 0, 0]} barSize={40} />
-                        <Line type="monotone" dataKey="target" name="Target (Budget)" stroke="#F59E0B" strokeWidth={3} dot={{r: 4}} />
+                        <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                        <Bar dataKey="actual" name="Actual Sales" fill="#6366F1" radius={[4, 4, 0, 0]} barSize={32} />
+                        <Line type="monotone" dataKey="target" name="Target (Budget)" stroke="#F59E0B" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+                        <Line type="monotone" dataKey="ly" name="Last Year" stroke="#94A3B8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                      </ComposedChart>
                   </ResponsiveContainer>
                </div>
