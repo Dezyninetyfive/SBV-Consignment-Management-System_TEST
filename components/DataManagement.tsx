@@ -1,8 +1,17 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { SaleRecord, StockMovement, StoreProfile, Product, InventoryItem, MovementType, Supplier } from '../types';
 import { 
-  Table, FileText, ShoppingBag, Store, ArrowRightLeft, Plus, Trash2, Edit2, Search, Truck
+  Table, 
+  FileText, 
+  ShoppingBag, 
+  Store, 
+  ArrowRightLeft,
+  Plus,
+  Trash2,
+  Edit2,
+  Upload,
+  Truck
 } from 'lucide-react';
 import { formatCurrency } from '../utils/dataUtils';
 import { StoreNetwork } from './StoreNetwork';
@@ -13,7 +22,6 @@ import { StoreModal } from './StoreModal';
 import { AddRecordModal } from './AddRecordModal';
 import { SupplierList } from './SupplierList';
 import { SupplierModal } from './SupplierModal';
-import { SAMPLE_BRANDS } from '../constants';
 
 interface Props {
   history: SaleRecord[];
@@ -21,17 +29,17 @@ interface Props {
   stores: StoreProfile[];
   products: Product[];
   inventory: InventoryItem[];
-  suppliers: Supplier[];
+  suppliers?: Supplier[];
   targetStore?: string | null;
-  onImportClick: (type: 'sales' | 'stores' | 'products' | 'stock_movements') => void;
+  onImportClick: (type: 'sales' | 'stores' | 'products' | 'stock_movements' | 'suppliers' | 'inventory' | 'invoices') => void;
   onEditRecord: (record: SaleRecord) => void;
   onDeleteRecord: (id: string) => void;
   onBulkDelete: (ids: string[]) => void;
-  onRecordTransaction: (data: any) => void;
+  onRecordTransaction: (data: { date: string, type: MovementType, storeId: string, productId: string, variant: string, quantity: number, reference: string }) => void;
 }
 
 export const DataManagement: React.FC<Props> = ({ 
-  history, movements, stores, products, inventory, suppliers, targetStore,
+  history, movements, stores, products, inventory, suppliers = [], targetStore,
   onImportClick, onEditRecord, onDeleteRecord, onBulkDelete, onRecordTransaction 
 }) => {
   const [activeTab, setActiveTab] = useState<'sales' | 'movements' | 'products' | 'stores' | 'suppliers'>('sales');
@@ -47,8 +55,12 @@ export const DataManagement: React.FC<Props> = ({
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [supplierToEdit, setSupplierToEdit] = useState<Supplier | null>(null);
 
-  // Sales Sorting
-  const [salesSort, setSalesSort] = useState<{ key: keyof SaleRecord, dir: 'asc' | 'desc' }>({ key: 'date', dir: 'desc' });
+  // Handle drill-down from dashboard (Target store logic if needed, usually just resets tab)
+  React.useEffect(() => {
+    if (targetStore) {
+      setActiveTab('sales');
+    }
+  }, [targetStore]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -62,9 +74,7 @@ export const DataManagement: React.FC<Props> = ({
           
           <div className="bg-slate-100 p-1 rounded-lg flex overflow-x-auto max-w-full">
              {[
-               { id: 'sales', label: 'Sales History', icon: FileText },
-               { id: 'movements', label: 'Stock Log', icon: ArrowRightLeft },
-               { id: 'products', label: 'Products', icon: ShoppingBag },
+               { id: 'sales', label: 'Sales', icon: FileText },
                { id: 'stores', label: 'Stores', icon: Store },
                { id: 'suppliers', label: 'Suppliers', icon: Truck },
              ].map(tab => (
@@ -85,34 +95,67 @@ export const DataManagement: React.FC<Props> = ({
           {activeTab === 'sales' && (
              <div className="space-y-4">
                 <div className="flex justify-end gap-2 mb-4">
-                   <button onClick={() => onImportClick('sales')} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50">Import CSV</button>
-                   <button onClick={() => { setRecordToEdit(null); setIsAddRecordModalOpen(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"><Plus size={16} /> Add Sale</button>
+                   <button 
+                     onClick={() => onImportClick('sales')}
+                     className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2"
+                   >
+                     <Upload size={16} /> Import CSV
+                   </button>
+                   <button 
+                     onClick={() => { setRecordToEdit(null); setIsAddRecordModalOpen(true); }}
+                     className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"
+                   >
+                     <Plus size={16} /> Add Sale
+                   </button>
                 </div>
-                {/* Simplified Table for brevity - Full implementation in previous steps */}
-                <div className="bg-white p-6 rounded-xl border border-slate-200 text-center text-slate-500">
-                   Sales History Table (Records: {history.length})
-                </div>
-             </div>
-          )}
-
-          {activeTab === 'movements' && (
-             <StockMovementLog movements={movements} onAddTransaction={() => setIsTransactionModalOpen(true)} />
-          )}
-
-          {activeTab === 'products' && (
-             <div className="space-y-4">
-                <div className="flex justify-end gap-2 mb-4">
-                   <button onClick={() => onImportClick('products')} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50">Import</button>
-                   <button onClick={() => { setProductToEdit(null); setIsProductFormOpen(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"><Plus size={16} /> Add Product</button>
-                </div>
-                <div className="bg-white p-6 rounded-xl border border-slate-200 text-center text-slate-500">
-                   Product Catalog Table (Items: {products.length})
+                
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                   <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm text-slate-600">
+                         <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
+                            <tr>
+                               <th className="px-6 py-4">Date</th>
+                               <th className="px-6 py-4">Store</th>
+                               <th className="px-6 py-4">Brand</th>
+                               <th className="px-6 py-4 text-right">Amount</th>
+                               <th className="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                         </thead>
+                         <tbody className="divide-y divide-slate-100">
+                            {history.slice(0, 50).map(r => (
+                               <tr key={r.id} className="hover:bg-slate-50">
+                                  <td className="px-6 py-4 font-mono text-xs">{r.date}</td>
+                                  <td className="px-6 py-4 font-medium text-slate-800">{r.counter}</td>
+                                  <td className="px-6 py-4">
+                                     <span className="px-2 py-0.5 bg-slate-100 rounded text-xs">{r.brand}</span>
+                                  </td>
+                                  <td className="px-6 py-4 text-right font-bold text-indigo-900">{formatCurrency(r.amount)}</td>
+                                  <td className="px-6 py-4 text-right">
+                                     <button onClick={() => onDeleteRecord(r.id)} className="text-slate-400 hover:text-red-600">
+                                        <Trash2 size={16} />
+                                     </button>
+                                  </td>
+                               </tr>
+                            ))}
+                         </tbody>
+                      </table>
+                      <div className="p-4 text-center text-xs text-slate-400 bg-slate-50 border-t border-slate-100">
+                         Showing last 50 records. Use search or filter for specific data.
+                      </div>
+                   </div>
                 </div>
              </div>
           )}
 
           {activeTab === 'stores' && (
-             <StoreNetwork stores={stores} onAddAction={() => { setStoreToEdit(null); setIsStoreModalOpen(true); }} onEditAction={(s) => { setStoreToEdit(s); setIsStoreModalOpen(true); }} onImportAction={() => onImportClick('stores')} onBulkUpdateAction={() => {}} />
+             <StoreNetwork 
+                stores={stores}
+                onAddAction={() => { setStoreToEdit(null); setIsStoreModalOpen(true); }}
+                onEditAction={(s) => { setStoreToEdit(s); setIsStoreModalOpen(true); }}
+                onImportAction={() => onImportClick('stores')}
+                onBulkUpdateAction={() => {}} 
+                onDeleteAction={() => {}} 
+             />
           )}
 
           {activeTab === 'suppliers' && (
@@ -125,11 +168,37 @@ export const DataManagement: React.FC<Props> = ({
        </div>
 
        {/* Modals */}
-       <TransactionFormModal isOpen={isTransactionModalOpen} onClose={() => setIsTransactionModalOpen(false)} stores={stores} products={products} inventory={inventory} onSubmit={onRecordTransaction} />
-       <ProductForm isOpen={isProductFormOpen} onClose={() => setIsProductFormOpen(false)} onSave={() => setIsProductFormOpen(false)} productToEdit={productToEdit} stores={stores} inventory={inventory} />
-       <StoreModal isOpen={isStoreModalOpen} onClose={() => setIsStoreModalOpen(false)} store={storeToEdit} onSave={() => setIsStoreModalOpen(false)} />
-       <AddRecordModal isOpen={isAddRecordModalOpen} onClose={() => setIsAddRecordModalOpen(false)} onSubmit={() => setIsAddRecordModalOpen(false)} />
-       <SupplierModal isOpen={isSupplierModalOpen} onClose={() => setIsSupplierModalOpen(false)} supplier={supplierToEdit} onSave={() => setIsSupplierModalOpen(false)} />
+       <StoreModal 
+          isOpen={isStoreModalOpen}
+          onClose={() => setIsStoreModalOpen(false)}
+          store={storeToEdit}
+          onSave={(s) => {
+             console.log("Saving Store", s);
+             setIsStoreModalOpen(false);
+          }}
+       />
+
+       <AddRecordModal 
+          isOpen={isAddRecordModalOpen}
+          onClose={() => setIsAddRecordModalOpen(false)}
+          onSubmit={(r) => {
+             console.log("Adding Record", r);
+             setIsAddRecordModalOpen(false);
+          }}
+          existingHistory={history}
+          availableStores={stores}
+          recordToEdit={recordToEdit}
+       />
+
+       <SupplierModal 
+          isOpen={isSupplierModalOpen} 
+          onClose={() => setIsSupplierModalOpen(false)} 
+          supplier={supplierToEdit} 
+          onSave={() => setIsSupplierModalOpen(false)} 
+       />
+
+       {/* Note: ProductForm and TransactionFormModal are removed from here as they live in InventoryManagement primarily, 
+           but if needed for 'admin' edits, they can be re-added. For now, cleaned up redundancy. */}
     </div>
   );
 };

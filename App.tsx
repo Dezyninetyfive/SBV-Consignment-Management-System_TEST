@@ -1,8 +1,37 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Database, Package, TrendingUp, DollarSign, MessageSquare, Menu, X, ShieldCheck } from 'lucide-react';
-import { generateMockStores, generateMockHistory, generateMockProducts, generateMockInventory, generateMockStockMovements, generateMockInvoices, generateMockSuppliers } from './utils/dataUtils';
-import { StoreProfile, SaleRecord, Product, InventoryItem, StockMovement, Invoice, ForecastRecord, PlanningConfig, MovementType, Supplier } from './types';
+import { 
+  LayoutDashboard, 
+  Database, 
+  Package, 
+  TrendingUp, 
+  DollarSign, 
+  MessageSquare, 
+  Menu,
+  X,
+  ShieldCheck
+} from 'lucide-react';
+import { 
+  generateMockStores, 
+  generateMockHistory, 
+  generateMockProducts, 
+  generateMockInventory, 
+  generateMockStockMovements, 
+  generateMockInvoices,
+  generateMockSuppliers
+} from './utils/dataUtils';
+import { 
+  StoreProfile, 
+  SaleRecord, 
+  Product, 
+  InventoryItem, 
+  StockMovement, 
+  Invoice, 
+  ForecastRecord, 
+  PlanningConfig,
+  MovementType,
+  Supplier
+} from './types';
 
 // Components
 import { DashboardKPIs } from './components/DashboardKPIs';
@@ -12,7 +41,7 @@ import { MetricsGrid } from './components/MetricsGrid';
 import { ChartsSection } from './components/ChartsSection';
 import { PlanningView } from './components/PlanningView';
 import { ForecastExplorer } from './components/ForecastExplorer';
-import { InventoryManagement } from './components/InventoryManagement'; // CHANGED from InventoryView
+import { InventoryManagement } from './components/InventoryManagement';
 import { DataManagement } from './components/DataManagement';
 import { AccountsReceivable } from './components/AccountsReceivable';
 import { AIChatAssistant } from './components/AIChatAssistant';
@@ -30,7 +59,7 @@ export default function App() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]); // NEW
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   
   // --- Forecast & Planning State ---
   const [forecasts, setForecasts] = useState<ForecastRecord[]>([]);
@@ -50,16 +79,15 @@ export default function App() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [paymentStore, setPaymentStore] = useState<StoreProfile | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importType, setImportType] = useState<'sales' | 'stores' | 'products' | 'inventory' | 'invoices' | 'stock_movements'>('sales');
+  const [importType, setImportType] = useState<'sales' | 'stores' | 'products' | 'inventory' | 'invoices' | 'stock_movements' | 'suppliers'>('sales');
 
   // --- Initialization ---
   useEffect(() => {
-    // Simulate data loading
     const loadData = async () => {
-      const _suppliers = generateMockSuppliers(); // NEW
+      const _suppliers = generateMockSuppliers();
       const _stores = generateMockStores();
       const _history = generateMockHistory(_stores);
-      const _products = generateMockProducts(_suppliers); // Pass suppliers to link
+      const _products = generateMockProducts(_suppliers);
       const _inventory = generateMockInventory(_stores, _products);
       const _movements = generateMockStockMovements(_inventory, _products);
       const _invoices = generateMockInvoices(_stores);
@@ -72,7 +100,6 @@ export default function App() {
       setMovements(_movements);
       setInvoices(_invoices);
 
-      // Generate initial forecast (Local fallback initially)
       const forecastResponse = await generateForecast(_history, new Date().getFullYear() + 1, { useAI: false });
       setForecasts(forecastResponse.forecasts);
 
@@ -83,14 +110,9 @@ export default function App() {
   }, []);
 
   // --- Handlers ---
-  // (Handlers for targets, margins, payments remain same - omitted for brevity but assumed present)
-  
   const handleUpdateTarget = (year: number, month: number, brand: string, counter: string, amount: number) => {
     const key = `${year}-${String(month).padStart(2, '0')}|${brand}|${counter}`;
-    setPlanningConfig(prev => ({
-      ...prev,
-      targets: { ...prev.targets, [key]: amount }
-    }));
+    setPlanningConfig(prev => ({ ...prev, targets: { ...prev.targets, [key]: amount } }));
   };
 
   const handleUpdateMargin = (brand: string, margin: number) => {
@@ -103,33 +125,21 @@ export default function App() {
   };
 
   const handleRecordPayment = (invoiceIds: string[], amount: number, method: string, ref: string) => {
-    // Simplified payment logic
-    let remainingPay = amount;
-    const newInvoices = invoices.map(inv => {
-      if (invoiceIds.includes(inv.id) && remainingPay > 0 && inv.status !== 'Paid') {
-        const due = inv.amount - (inv.paidAmount || 0);
-        const toPay = Math.min(due, remainingPay);
-        remainingPay -= toPay;
-        const newPaid = (inv.paidAmount || 0) + toPay;
-        const status = newPaid >= inv.amount ? 'Paid' : 'Partial';
-        return {
-          ...inv,
-          paidAmount: newPaid,
-          status,
-          payments: [...(inv.payments || []), { id: `pay-${Date.now()}`, date: new Date().toISOString().split('T')[0], amount: toPay, method, reference: ref }]
-        };
-      }
-      return inv;
-    });
-    setInvoices(newInvoices);
+    setInvoices(prev => prev.map(inv => {
+        if (invoiceIds.includes(inv.id)) {
+            const due = inv.amount - (inv.paidAmount || 0);
+            const paid = (inv.paidAmount || 0) + Math.min(due, amount); 
+            const status = paid >= inv.amount ? 'Paid' as const : 'Partial' as const;
+            return { ...inv, paidAmount: paid, status, payments: [...(inv.payments||[]), {id: Date.now().toString(), date: new Date().toISOString().split('T')[0], amount, method, reference: ref}] };
+        }
+        return inv;
+    }));
   };
 
   const handleRecordStockTransaction = (data: { date: string, type: MovementType, storeId: string, productId: string, variant: string, quantity: number, reference: string }) => {
-     // 1. Add to Movements
      const product = products.find(p => p.id === data.productId);
      const store = stores.find(s => s.id === data.storeId);
      
-     // Determine sign based on type
      let qty = data.quantity;
      if (['Sale', 'Transfer Out'].includes(data.type)) qty = -Math.abs(data.quantity);
      else if (['Restock', 'Transfer In', 'Return'].includes(data.type)) qty = Math.abs(data.quantity);
@@ -149,7 +159,6 @@ export default function App() {
      };
      setMovements(prev => [newMove, ...prev]);
 
-     // 2. Update Inventory
      setInventory(prev => {
         const existing = prev.find(i => i.storeId === data.storeId && i.productId === data.productId);
         if (existing) {
@@ -173,13 +182,17 @@ export default function App() {
      });
   };
 
-  const handleImportStockMovements = (data: any[]) => console.log("Importing movements...", data);
+  // NEW: Save markdown
+  const handleSaveMarkdown = (productId: string, price: number) => {
+    setProducts(prev => prev.map(p => {
+      if (p.id === productId) {
+        return { ...p, markdownPrice: price > 0 ? price : undefined };
+      }
+      return p;
+    }));
+  };
 
-  // --- Render ---
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-screen bg-slate-50">Loading SalesCast...</div>;
-  }
+  if (loading) return <div className="flex items-center justify-center h-screen bg-slate-50">Loading SalesCast...</div>;
 
   const renderContent = () => {
     switch(activeTab) {
@@ -212,6 +225,8 @@ export default function App() {
              history={history}
              suppliers={suppliers}
              onRecordTransaction={handleRecordStockTransaction}
+             onImportClick={(t) => { setImportType(t); setIsImportModalOpen(true); }}
+             onSaveMarkdown={handleSaveMarkdown}
           />
         );
       case 'data':

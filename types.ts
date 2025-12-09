@@ -63,11 +63,13 @@ export interface Product {
   id: string;
   sku: string;
   name: string;
+  description?: string; // NEW
   brand: string;
   category: string;
   subCategory: string;
   cost: number;
   price: number;
+  markdownPrice?: number; // NEW: Discounted selling price
   imageUrl: string;
   variants: string[]; // e.g. ["S", "M", "L"] or ["Red", "Blue"]
   // New Extended Attributes

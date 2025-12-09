@@ -1,5 +1,7 @@
+
+
 import React, { useState } from 'react';
-import { SaleRecord, StockMovement, StoreProfile, Product, InventoryItem, MovementType } from '../types';
+import { SaleRecord, StockMovement, StoreProfile, Product, InventoryItem, MovementType, Supplier } from '../types';
 import { 
   Table, 
   FileText, 
@@ -24,6 +26,7 @@ interface Props {
   stores: StoreProfile[];
   products: Product[];
   inventory: InventoryItem[];
+  suppliers?: Supplier[];
   targetStore?: string | null;
   onImportClick: (type: 'sales' | 'stores' | 'products' | 'stock_movements') => void;
   onEditRecord: (record: SaleRecord) => void;

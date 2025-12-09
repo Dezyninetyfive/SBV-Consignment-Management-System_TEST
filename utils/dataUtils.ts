@@ -147,11 +147,14 @@ export const generateMockProducts = (suppliers: Supplier[] = []): Product[] => {
         const variants = SIZES.map(s => `${color}-${s}`);
         
         const supplier = suppliers.length > 0 ? suppliers[Math.floor(Math.random() * suppliers.length)] : undefined;
+        const fabric = FABRICS[Math.floor(Math.random() * FABRICS.length)];
+        const fit = FITS[Math.floor(Math.random() * FITS.length)];
 
         products.push({
           id: `p-${idCounter}`,
           sku: `${brand.substring(0,3).toUpperCase()}-${cat.substring(0,3).toUpperCase()}-00${i}`,
           name: `${brand} ${cat} Style #${i} (${color})`,
+          description: `High-quality ${fabric.toLowerCase()} ${cat.toLowerCase()} featuring a ${fit.toLowerCase()} fit. Perfect for casual or semi-formal occasions. Available in ${color}.`,
           brand,
           category: cat,
           subCategory: 'General',
@@ -162,9 +165,9 @@ export const generateMockProducts = (suppliers: Supplier[] = []): Product[] => {
           supplierId: supplier?.id,
           supplierName: supplier?.name,
           attributes: {
-            fabric: FABRICS[Math.floor(Math.random() * FABRICS.length)],
+            fabric: fabric,
             neckline: NECKLINES[Math.floor(Math.random() * NECKLINES.length)],
-            fit: FITS[Math.floor(Math.random() * FITS.length)],
+            fit: fit,
             gender: brand === 'Domino' ? 'Men' : brand === 'OTTO' ? 'Women' : 'Kids',
             season: Math.random() > 0.5 ? 'SS24' : 'FW24'
           },

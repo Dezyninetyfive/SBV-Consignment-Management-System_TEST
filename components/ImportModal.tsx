@@ -1,26 +1,29 @@
 
 
 
+
+
 import React, { useState, useRef } from 'react';
 import { X, Upload, FileText, AlertCircle, CheckCircle, Download } from 'lucide-react';
-import { SaleRecord, StoreProfile, Product, InventoryItem, Invoice, StockMovement } from '../types';
+import { SaleRecord, StoreProfile, Product, InventoryItem, Invoice, StockMovement, Supplier } from '../types';
 import { CSV_TEMPLATES } from '../constants';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  type: 'sales' | 'stores' | 'products' | 'inventory' | 'invoices' | 'stock_movements';
+  type: 'sales' | 'stores' | 'products' | 'inventory' | 'invoices' | 'stock_movements' | 'suppliers';
   onImportSales?: (data: SaleRecord[]) => void;
   onImportStores?: (data: StoreProfile[]) => void;
   onImportProducts?: (data: Product[]) => void;
   onImportInventory?: (data: any[]) => void;
   onImportInvoices?: (data: any[]) => void;
   onImportStockMovements?: (data: any[]) => void;
+  onImportSuppliers?: (data: Supplier[]) => void;
 }
 
 export const ImportModal: React.FC<Props> = ({ 
   isOpen, onClose, type, 
-  onImportSales, onImportStores, onImportProducts, onImportInventory, onImportInvoices, onImportStockMovements
+  onImportSales, onImportStores, onImportProducts, onImportInventory, onImportInvoices, onImportStockMovements, onImportSuppliers
 }) => {
   const [csvContent, setCsvContent] = useState('');
   const [previewData, setPreviewData] = useState<any[]>([]);
@@ -69,6 +72,9 @@ export const ImportModal: React.FC<Props> = ({
       }
       if (type === 'stock_movements' && (!headers.includes('storename') || !headers.includes('sku') || !headers.includes('quantity'))) {
          throw new Error("Missing columns: StoreName, SKU, Quantity");
+      }
+      if (type === 'suppliers' && !headers.includes('name')) {
+         throw new Error("Missing column: Name");
       }
 
       for (let i = 1; i < lines.length; i++) {
@@ -139,6 +145,17 @@ export const ImportModal: React.FC<Props> = ({
              quantity: parseInt(obj.quantity) || 0,
              reference: obj.reference || ''
           });
+        } else if (type === 'suppliers') {
+          results.push({
+             id: `sup-import-${Date.now()}-${i}`,
+             name: obj.name,
+             contactPerson: obj.contactperson || '',
+             email: obj.email || '',
+             phone: obj.phone || '',
+             paymentTerms: parseInt(obj.paymentterms) || 30,
+             leadTime: parseInt(obj.leadtime) || 14,
+             address: obj.address || ''
+          } as Supplier);
         }
       }
 
@@ -156,6 +173,7 @@ export const ImportModal: React.FC<Props> = ({
     if (type === 'inventory' && onImportInventory) onImportInventory(previewData);
     if (type === 'invoices' && onImportInvoices) onImportInvoices(previewData);
     if (type === 'stock_movements' && onImportStockMovements) onImportStockMovements(previewData);
+    if (type === 'suppliers' && onImportSuppliers) onImportSuppliers(previewData);
     
     onClose();
     setCsvContent('');
@@ -170,6 +188,7 @@ export const ImportModal: React.FC<Props> = ({
       case 'inventory': return CSV_TEMPLATES.INVENTORY;
       case 'invoices': return CSV_TEMPLATES.INVOICES;
       case 'stock_movements': return CSV_TEMPLATES.STOCK_MOVEMENTS;
+      case 'suppliers': return CSV_TEMPLATES.SUPPLIERS;
       default: return '';
     }
   };

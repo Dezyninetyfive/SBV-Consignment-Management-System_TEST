@@ -2,6 +2,7 @@
 
 
 
+
 export const SAMPLE_BRANDS = ['Domino', 'OTTO', "O'Dear"];
 
 // We will generate 170 store names programmatically in dataUtils, 
@@ -48,7 +49,9 @@ MegaMart,OTTO,1200,2023-11-30`,
   STOCK_MOVEMENTS: `Date,Type,StoreName,SKU,Variant,Quantity,Reference
 2023-10-01,Restock,Central Plaza,DOM-SH-001,S,50,PO-1001
 2023-10-05,Sale,Central Plaza,DOM-SH-001,S,-1,POS-123
-2023-10-06,Transfer Out,Central Plaza,DOM-SH-001,S,-5,TR-To-MegaMart`
+2023-10-06,Transfer Out,Central Plaza,DOM-SH-001,S,-5,TR-To-MegaMart`,
+  SUPPLIERS: `Name,ContactPerson,Email,Phone,PaymentTerms,LeadTime
+FabriCo Ltd,Manager A,contact@fabrico.com,+60123456789,30,14`
 };
 
 export const PRODUCT_CATEGORIES = {

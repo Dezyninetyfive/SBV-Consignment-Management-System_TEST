@@ -23,7 +23,9 @@ export const ProductDetailModal: React.FC<Props> = ({ product, isOpen, onClose, 
   }, [product, inventory]);
 
   const totalStock = stockLocation.reduce((acc, item) => acc + item.quantity, 0);
-  const totalValue = totalStock * (product?.price || 0);
+  
+  const currentPrice = product?.markdownPrice && product.markdownPrice > 0 ? product.markdownPrice : (product?.price || 0);
+  const isDiscounted = product?.markdownPrice && product.markdownPrice > 0 && product.markdownPrice < product.price;
 
   if (!isOpen || !product) return null;
 
@@ -70,7 +72,19 @@ export const ProductDetailModal: React.FC<Props> = ({ product, isOpen, onClose, 
                     </div>
                  )}
                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                    <p className="text-white font-bold text-lg">{formatCurrency(product.price)}</p>
+                    {isDiscounted ? (
+                        <div>
+                            <p className="text-white font-bold text-lg flex items-center gap-2">
+                                {formatCurrency(currentPrice)}
+                                <span className="text-sm line-through text-white/70 font-normal">{formatCurrency(product.price)}</span>
+                            </p>
+                            <span className="inline-block bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded mt-1">
+                                SAVE {((1 - currentPrice/product.price)*100).toFixed(0)}%
+                            </span>
+                        </div>
+                    ) : (
+                        <p className="text-white font-bold text-lg">{formatCurrency(product.price)}</p>
+                    )}
                     <p className="text-slate-200 text-xs">Retail Price</p>
                  </div>
               </div>
@@ -83,7 +97,7 @@ export const ProductDetailModal: React.FC<Props> = ({ product, isOpen, onClose, 
                  <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                     <span className="text-xs text-slate-500 uppercase font-semibold">Margin</span>
                     <span className="font-mono font-medium text-emerald-600">
-                      {product.price > 0 ? ((1 - (product.cost / product.price)) * 100).toFixed(1) : 0}%
+                      {currentPrice > 0 ? ((1 - (product.cost / currentPrice)) * 100).toFixed(1) : 0}%
                     </span>
                  </div>
                  <div className="flex justify-between items-center">
@@ -99,6 +113,8 @@ export const ProductDetailModal: React.FC<Props> = ({ product, isOpen, onClose, 
               {/* Info Block */}
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">{product.name}</h2>
+                {product.description && <p className="text-slate-600 text-sm mb-4 leading-relaxed">{product.description}</p>}
+                
                 <div className="flex flex-wrap gap-2 mb-4">
                   <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${
                     product.brand === 'Domino' ? 'bg-blue-50 text-blue-700 border-blue-100' :
@@ -147,24 +163,24 @@ export const ProductDetailModal: React.FC<Props> = ({ product, isOpen, onClose, 
                         <thead className="bg-slate-50 text-xs text-slate-500 uppercase font-semibold">
                           <tr>
                             <th className="px-4 py-3">Store Name</th>
-                            <th className="px-4 py-3 text-right">Quantity</th>
-                            <th className="px-4 py-3 text-right">Status</th>
+                            <th className="px-4 py-3">Variant Breakdown</th>
+                            <th className="px-4 py-3 text-right">Total Qty</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {stockLocation.map((item) => (
                             <tr key={item.id} className="hover:bg-slate-50">
                               <td className="px-4 py-3 font-medium text-slate-700">{item.storeName}</td>
-                              <td className="px-4 py-3 text-right font-bold text-slate-900">{item.quantity}</td>
-                              <td className="px-4 py-3 text-right">
-                                {item.quantity > 10 ? (
-                                  <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">In Stock</span>
-                                ) : item.quantity > 0 ? (
-                                  <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">Low Stock</span>
-                                ) : (
-                                  <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">Out of Stock</span>
-                                )}
+                              <td className="px-4 py-3">
+                                 <div className="flex flex-wrap gap-1">
+                                    {Object.entries(item.variantQuantities || {}).map(([variant, qty]) => (qty as number) > 0 && (
+                                       <span key={variant} className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-100">
+                                          {variant}: <b>{qty as number}</b>
+                                       </span>
+                                    ))}
+                                 </div>
                               </td>
+                              <td className="px-4 py-3 text-right font-bold text-slate-900">{item.quantity}</td>
                             </tr>
                           ))}
                         </tbody>
