@@ -1,5 +1,4 @@
 
-
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { SaleRecord, ForecastResponse, ForecastRecord } from '../types';
 import { AI_MODEL_FORECAST } from '../constants';
@@ -262,9 +261,9 @@ export const askBusinessQuestion = async (
     Business Context:
     - Brands: Domino (Mens), OTTO (Womens), O'Dear (Kids)
     - Total Stores: ${contextData.storeCount}
-    - Total Sales YTD: $${contextData.totalSales}
-    - Total Inventory Value: $${contextData.totalInventoryValue}
-    - Total Overdue AR: $${contextData.totalOverdue}
+    - Total Sales YTD: RM${contextData.totalSales}
+    - Total Inventory Value: RM${contextData.totalInventoryValue}
+    - Total Overdue AR: RM${contextData.totalOverdue}
 
     Top 5 Stores by Sales:
     ${JSON.stringify(contextData.topStores)}

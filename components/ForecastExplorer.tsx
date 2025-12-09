@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { SaleRecord, ForecastRecord } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -183,7 +184,7 @@ export const ForecastExplorer: React.FC<Props> = ({ history, forecast, adjustmen
                 minTickGap={30}
               />
               <YAxis 
-                tickFormatter={(value) => `$${value/1000}k`}
+                tickFormatter={(value) => `RM${(value/1000).toFixed(0)}k`}
                 tick={{ fontSize: 10, fill: '#64748B' }}
                 axisLine={false}
                 tickLine={false}

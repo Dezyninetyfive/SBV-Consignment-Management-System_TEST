@@ -140,7 +140,7 @@ export const ChartsSection: React.FC<Props> = ({ history, forecast }) => {
                 tickLine={false}
               />
               <YAxis 
-                tickFormatter={(value) => `$${value / 1000}k`} 
+                tickFormatter={(value) => `RM${(value / 1000).toFixed(0)}k`} 
                 tick={{ fontSize: 12, fill: '#64748B' }}
                 axisLine={false}
                 tickLine={false}
@@ -184,7 +184,7 @@ export const ChartsSection: React.FC<Props> = ({ history, forecast }) => {
                   tickLine={false}
                 />
                 <YAxis 
-                   tickFormatter={(value) => `$${value / 1000}k`}
+                   tickFormatter={(value) => `RM${(value / 1000).toFixed(0)}k`}
                    tick={{ fontSize: 12, fill: '#64748B' }}
                    axisLine={false}
                    tickLine={false}

@@ -128,8 +128,8 @@ export const generateMockProducts = (): Product[] => {
           brand,
           category: cat,
           subCategory: 'General',
-          cost: Math.floor(cost),
-          price: Math.floor(price),
+          cost: Math.floor(cost * 100) / 100,
+          price: Math.floor(price * 100) / 100,
           imageUrl: `https://placehold.co/400x500/f1f5f9/475569?text=${brand}+${cat}+${i}`,
           variants: ['S', 'M', 'L', 'XL']
         });
@@ -197,7 +197,7 @@ export const generateMockInvoices = (stores: StoreProfile[]): Invoice[] => {
               storeId: store.id,
               storeName: store.name,
               brand: brand,
-              amount: Math.floor(Math.random() * 10000) + 2000,
+              amount: Math.floor((Math.random() * 10000 + 2000) * 100) / 100,
               paidAmount: 0,
               issueDate: issueDate.toISOString().split('T')[0],
               dueDate: dueDate.toISOString().split('T')[0],
@@ -289,10 +289,11 @@ export const getMonthlyHistory = (
 };
 
 export const formatCurrency = (val: number) => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-MY', {
     style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
+    currency: 'MYR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(val);
 };
 

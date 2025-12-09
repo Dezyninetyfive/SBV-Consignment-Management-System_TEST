@@ -318,7 +318,7 @@ export const SalesAnalysis: React.FC<Props> = ({ history, planningData, stores }
                      <ComposedChart data={monthData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
                         <XAxis dataKey="monthName" tick={{fontSize: 12, fill: '#64748B'}} axisLine={false} tickLine={false} />
-                        <YAxis tick={{fontSize: 12, fill: '#64748B'}} tickFormatter={(val) => `$${val/1000}k`} axisLine={false} tickLine={false} />
+                        <YAxis tick={{fontSize: 12, fill: '#64748B'}} tickFormatter={(val) => `RM${(val/1000).toFixed(0)}k`} axisLine={false} tickLine={false} />
                         <Tooltip 
                            cursor={{fill: '#F1F5F9'}}
                            content={({ active, payload, label }) => {
