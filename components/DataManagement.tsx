@@ -1,23 +1,37 @@
 
+
+
 import React, { useState, useMemo } from 'react';
-import { SaleRecord } from '../types';
-import { Search, Filter, Download, Upload, Trash2, Edit2, Calendar, ChevronLeft, ChevronRight, CheckSquare, Square, ArrowUpDown, ArrowUp, ArrowDown, Store, ArrowLeft, DollarSign } from 'lucide-react';
+import { SaleRecord, StockMovement, MovementType } from '../types';
+import { Search, Filter, Download, Upload, Trash2, Edit2, Calendar, ChevronLeft, ChevronRight, CheckSquare, Square, ArrowUpDown, ArrowUp, ArrowDown, Store, ArrowLeft, DollarSign, History, ArrowUpRight, ArrowDownLeft, PlusCircle } from 'lucide-react';
 import { SAMPLE_BRANDS } from '../constants';
 import { formatCurrency } from '../utils/dataUtils';
 import { DeleteConfirmationModal } from './DeleteConfirmationModal';
+import { TransactionFormModal } from './TransactionFormModal';
 
 interface Props {
   history: SaleRecord[];
-  onImportClick: () => void;
+  movements?: StockMovement[];
+  onImportClick: (type: 'sales' | 'stock_movements') => void;
   onEditRecord: (record: SaleRecord) => void;
   onDeleteRecord: (id: string) => void;
   onBulkDelete?: (ids: string[]) => void;
+  onRecordTransaction?: (data: { date: string, type: MovementType, storeId: string, productId: string, variant: string, quantity: number, reference: string }) => void;
+  onTransactionTransfer?: (data: any) => void; // Pass transfer handler if needed, though usually handled via onRecordTransaction for individual legs or unified modal
+  stores?: any[]; // Passed for transaction modal
+  products?: any[]; // Passed for transaction modal
 }
 
-type SortKey = 'date' | 'brand' | 'counter' | 'amount';
+type SortKey = 'date' | 'brand' | 'counter' | 'amount' | 'sku' | 'type' | 'quantity';
 type SortDirection = 'asc' | 'desc';
 
-export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEditRecord, onDeleteRecord, onBulkDelete }) => {
+export const DataManagement: React.FC<Props> = ({ 
+  history, movements = [], onImportClick, onEditRecord, onDeleteRecord, onBulkDelete,
+  onRecordTransaction, stores = [], products = []
+}) => {
+  // Data Source Switcher
+  const [dataSource, setDataSource] = useState<'sales' | 'movements'>('sales');
+
   // Navigation State
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
@@ -25,6 +39,7 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
   // Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [brandFilter, setBrandFilter] = useState('All');
+  const [movementTypeFilter, setMovementTypeFilter] = useState('All');
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
   
@@ -38,10 +53,11 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
   // Selection State
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Delete Modal State
+  // Modal State
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
   const [itemToDeleteName, setItemToDeleteName] = useState<string | undefined>(undefined);
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
 
   // --- Helpers ---
 
@@ -60,27 +76,50 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
   // --- Filtering & Sorting Logic ---
 
   const processedData = useMemo(() => {
-    // 1. Filter
-    let data = history.filter(record => {
-      // If in Detail mode, strictly filter by selected store
-      if (viewMode === 'detail' && selectedStore) {
-         if (record.counter !== selectedStore) return false;
-      }
+    let data: any[] = dataSource === 'sales' ? history : movements;
 
-      const matchesSearch = viewMode === 'list' 
-        ? record.counter.toLowerCase().includes(searchTerm.toLowerCase()) 
-        : true; // In detail mode, we are already drilling down, search can be ignored or used for ID? Let's ignore for clarity or maybe filter brand.
-      
-      const matchesBrand = brandFilter === 'All' || record.brand === brandFilter;
+    // Filter
+    data = data.filter(record => {
+      // Common Filters
       const matchesDateStart = !dateStart || record.date >= dateStart;
       const matchesDateEnd = !dateEnd || record.date <= dateEnd;
-      return matchesSearch && matchesBrand && matchesDateStart && matchesDateEnd;
+      
+      if (!matchesDateStart || !matchesDateEnd) return false;
+
+      // Sales Specific
+      if (dataSource === 'sales') {
+         const r = record as SaleRecord;
+         if (viewMode === 'detail' && selectedStore && r.counter !== selectedStore) return false;
+         
+         const matchesSearch = viewMode === 'list' 
+            ? r.counter.toLowerCase().includes(searchTerm.toLowerCase()) 
+            : true;
+         const matchesBrand = brandFilter === 'All' || r.brand === brandFilter;
+         
+         return matchesSearch && matchesBrand;
+      }
+      
+      // Movements Specific
+      if (dataSource === 'movements') {
+         const m = record as StockMovement;
+         const matchesSearch = 
+            m.storeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            m.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            m.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (m.reference && m.reference.toLowerCase().includes(searchTerm.toLowerCase()));
+         
+         const matchesType = movementTypeFilter === 'All' || m.type === movementTypeFilter;
+         return matchesSearch && matchesType;
+      }
+
+      return true;
     });
 
-    // 2. Sort
+    // Sort
     data.sort((a, b) => {
-      const valA = a[sortConfig.key];
-      const valB = b[sortConfig.key];
+      // Handle numeric vs string
+      const valA = sortConfig.key === 'amount' || sortConfig.key === 'quantity' ? (a[sortConfig.key] || 0) : (a[sortConfig.key] || '');
+      const valB = sortConfig.key === 'amount' || sortConfig.key === 'quantity' ? (b[sortConfig.key] || 0) : (b[sortConfig.key] || '');
 
       if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
       if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
@@ -88,26 +127,24 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
     });
 
     return data;
-  }, [history, searchTerm, brandFilter, dateStart, dateEnd, sortConfig, viewMode, selectedStore]);
+  }, [history, movements, dataSource, searchTerm, brandFilter, movementTypeFilter, dateStart, dateEnd, sortConfig, viewMode, selectedStore]);
 
   // --- Pagination Logic ---
   const totalPages = Math.ceil(processedData.length / itemsPerPage);
   const currentData = processedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // --- Store Drill Down Stats ---
+  // --- Store Drill Down Stats (Sales Only) ---
   const storeStats = useMemo(() => {
-    if (viewMode !== 'detail' || !selectedStore) return null;
+    if (viewMode !== 'detail' || !selectedStore || dataSource !== 'sales') return null;
 
     const storeRecords = history.filter(r => r.counter === selectedStore);
     const totalRevenue = storeRecords.reduce((acc, r) => acc + r.amount, 0);
     const avgTicket = totalRevenue / (storeRecords.length || 1);
     
-    // Top Brand
     const brandCounts: Record<string, number> = {};
     storeRecords.forEach(r => brandCounts[r.brand] = (brandCounts[r.brand] || 0) + r.amount);
     const topBrand = Object.entries(brandCounts).sort(([,a], [,b]) => b-a)[0]?.[0] || 'N/A';
 
-    // Best Month
     const monthCounts: Record<string, number> = {};
     storeRecords.forEach(r => {
         const m = r.date.substring(0, 7);
@@ -116,7 +153,7 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
     const bestMonth = Object.entries(monthCounts).sort(([,a], [,b]) => b-a)[0]?.[0] || 'N/A';
 
     return { totalRevenue, avgTicket, topBrand, bestMonth, recordCount: storeRecords.length };
-  }, [viewMode, selectedStore, history]);
+  }, [viewMode, selectedStore, history, dataSource]);
 
 
   // --- Event Handlers ---
@@ -124,9 +161,8 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
   const handleStoreClick = (storeName: string) => {
     setSelectedStore(storeName);
     setViewMode('detail');
-    setCurrentPage(1); // Reset page
-    setSelectedIds(new Set()); // Clear selection
-    // Optional: Reset filters or keep them? keeping them is usually better UX
+    setCurrentPage(1);
+    setSelectedIds(new Set());
   };
 
   const handleBackToList = () => {
@@ -151,10 +187,12 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
   };
 
   const triggerBulkDelete = () => {
-     if (selectedIds.size > 0) {
+     if (selectedIds.size > 0 && dataSource === 'sales') {
          setItemsToDelete(Array.from(selectedIds));
          setItemToDeleteName(undefined);
          setDeleteModalOpen(true);
+     } else {
+       alert("Bulk delete is currently only supported for Sales Records.");
      }
   };
 
@@ -170,22 +208,33 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
      } else if (itemsToDelete.length > 1 && onBulkDelete) {
          onBulkDelete(itemsToDelete);
      }
-     // Cleanup
      setSelectedIds(new Set());
      setItemsToDelete([]);
   };
 
   const handleExport = () => {
-    const csvHeader = "Date,Brand,Counter,Amount\n";
-    const csvRows = processedData.map(r => `${r.date},${r.brand},"${r.counter}",${r.amount}`).join("\n");
+    let csvHeader = "";
+    let csvRows = "";
+    const filename = dataSource === 'sales' ? 'sales_data' : 'stock_movements';
+
+    if (dataSource === 'sales') {
+       csvHeader = "Date,Brand,Counter,Amount\n";
+       csvRows = processedData.map(r => `${r.date},${r.brand},"${r.counter}",${r.amount}`).join("\n");
+    } else {
+       csvHeader = "Date,Type,StoreName,SKU,Variant,Quantity,Reference\n";
+       csvRows = processedData.map(m => `${m.date},${m.type},"${m.storeName}",${m.sku},${m.variant},${m.quantity},${m.reference || ''}`).join("\n");
+    }
+
     const blob = new Blob([csvHeader + csvRows], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `sales_data_${viewMode === 'detail' ? selectedStore : 'export'}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `${filename}_export_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
+
+  const movementTypes = ['Sale', 'Restock', 'Transfer In', 'Transfer Out', 'Adjustment', 'Return'];
 
   // --- Render ---
 
@@ -193,7 +242,7 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
     <div className="space-y-6 animate-in fade-in duration-500">
       
       {/* Header / Stats */}
-      {viewMode === 'list' ? (
+      {dataSource === 'sales' && viewMode === 'list' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
                 <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
@@ -223,112 +272,121 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
                 </div>
             </div>
           </div>
-      ) : (
-          <div className="space-y-4">
-            <button 
-                onClick={handleBackToList}
-                className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-medium transition-colors"
-            >
-                <ArrowLeft size={18} /> Back to All Data
-            </button>
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-6 border-b border-slate-100">
-                     <div>
-                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                            <Store className="text-indigo-600" />
-                            {selectedStore}
-                        </h2>
-                        <p className="text-slate-500">Sales Transaction History</p>
-                     </div>
-                     <div className="flex gap-2">
-                        <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-semibold text-slate-600 uppercase">
-                            {storeStats?.recordCount} Transactions
-                        </span>
-                     </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div>
-                        <p className="text-xs text-slate-400 font-semibold uppercase mb-1">Total Sales</p>
-                        <p className="text-xl font-bold text-indigo-900">{formatCurrency(storeStats?.totalRevenue || 0)}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-400 font-semibold uppercase mb-1">Avg Ticket</p>
-                        <p className="text-xl font-bold text-slate-700">{formatCurrency(storeStats?.avgTicket || 0)}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-400 font-semibold uppercase mb-1">Top Brand</p>
-                        <p className="text-xl font-bold text-slate-700">{storeStats?.topBrand}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-slate-400 font-semibold uppercase mb-1">Best Month</p>
-                        <p className="text-xl font-bold text-emerald-600">{storeStats?.bestMonth}</p>
-                    </div>
-                </div>
-            </div>
-          </div>
       )}
 
       {/* Controls Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-end sticky top-0 z-20">
         
-        <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-          {/* Search - Hide in Detail view since we selected a store */}
-          {viewMode === 'list' && (
-            <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase">Search Store</label>
-                <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input 
-                    type="text" 
-                    placeholder="Store Name..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full sm:w-48 pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-sm"
-                />
-                </div>
-            </div>
-          )}
-
-          {/* Brand Filter */}
-          <div className="space-y-1">
-             <label className="text-xs font-semibold text-slate-500 uppercase">Brand</label>
-             <div className="relative">
-               <select 
-                 value={brandFilter}
-                 onChange={(e) => setBrandFilter(e.target.value)}
-                 className="w-full sm:w-32 pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-sm appearance-none"
-               >
-                 <option value="All">All Brands</option>
-                 {SAMPLE_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-               </select>
-               <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
-             </div>
+        <div className="flex flex-col gap-4 w-full lg:w-auto">
+          
+          {/* Source Toggle */}
+          <div className="flex bg-slate-100 p-1 rounded-lg self-start">
+             <button
+                onClick={() => { setDataSource('sales'); setViewMode('list'); }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                   dataSource === 'sales' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+             >
+                <DollarSign size={16} /> Sales Records
+             </button>
+             <button
+                onClick={() => { setDataSource('movements'); setViewMode('list'); }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                   dataSource === 'movements' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+             >
+                <History size={16} /> Stock Movements
+             </button>
           </div>
 
-          {/* Date Range */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-500 uppercase">Date Range</label>
-            <div className="flex items-center gap-2">
-              <input 
-                type="date" 
-                value={dateStart}
-                onChange={(e) => setDateStart(e.target.value)}
-                className="w-32 px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
-              />
-              <span className="text-slate-400">-</span>
-              <input 
-                type="date" 
-                value={dateEnd}
-                onChange={(e) => setDateEnd(e.target.value)}
-                className="w-32 px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
-              />
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Search */}
+            {viewMode === 'list' && (
+                <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase">Search</label>
+                    <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input 
+                        type="text" 
+                        placeholder={dataSource === 'sales' ? "Store Name..." : "Store, Product, SKU..."}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full sm:w-48 pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-sm"
+                    />
+                    </div>
+                </div>
+            )}
+
+            {/* Sales Filters */}
+            {dataSource === 'sales' && viewMode === 'list' && (
+                <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase">Brand</label>
+                    <div className="relative">
+                    <select 
+                        value={brandFilter}
+                        onChange={(e) => setBrandFilter(e.target.value)}
+                        className="w-full sm:w-32 pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-sm appearance-none"
+                    >
+                        <option value="All">All Brands</option>
+                        {SAMPLE_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                    <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
+                </div>
+            )}
+
+            {/* Movement Filters */}
+            {dataSource === 'movements' && (
+                <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-500 uppercase">Type</label>
+                    <div className="relative">
+                    <select 
+                        value={movementTypeFilter}
+                        onChange={(e) => setMovementTypeFilter(e.target.value)}
+                        className="w-full sm:w-32 pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 text-sm appearance-none"
+                    >
+                        <option value="All">All Types</option>
+                        {movementTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                    </div>
+                </div>
+            )}
+
+            {/* Date Range */}
+            <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-500 uppercase">Date Range</label>
+                <div className="flex items-center gap-2">
+                <input 
+                    type="date" 
+                    value={dateStart}
+                    onChange={(e) => setDateStart(e.target.value)}
+                    className="w-32 px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                />
+                <span className="text-slate-400">-</span>
+                <input 
+                    type="date" 
+                    value={dateEnd}
+                    onChange={(e) => setDateEnd(e.target.value)}
+                    className="w-32 px-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                />
+                </div>
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-2 w-full lg:w-auto justify-end items-center">
-          {selectedIds.size > 0 && (
+          {dataSource === 'movements' && onRecordTransaction && (
+             <button 
+                onClick={() => setIsTransactionModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm transition-colors whitespace-nowrap"
+             >
+                <PlusCircle size={16} /> Add Transaction
+             </button>
+          )}
+          
+          {selectedIds.size > 0 && dataSource === 'sales' && (
               <button 
                 onClick={triggerBulkDelete}
                 className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors shadow-sm mr-2"
@@ -339,19 +397,19 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
           )}
           {viewMode === 'list' && (
              <button 
-                onClick={onImportClick}
+                onClick={() => onImportClick(dataSource === 'sales' ? 'sales' : 'stock_movements')}
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors shadow-sm"
             >
                 <Upload size={16} />
-                Import CSV
+                Import
             </button>
           )}
           <button 
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
             <Download size={16} />
-            Export CSV
+            Export
           </button>
         </div>
 
@@ -363,97 +421,135 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
               <tr>
-                <th className="px-4 py-4 w-10">
-                   <button onClick={toggleSelectAll} className="text-slate-400 hover:text-indigo-600">
-                      {selectedIds.size === currentData.length && currentData.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
-                   </button>
-                </th>
-                <th 
-                  className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors"
-                  onClick={() => handleSort('date')}
-                >
-                  <div className="flex items-center gap-1">Date <SortIcon column="date"/></div>
-                </th>
-                <th 
-                  className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors"
-                  onClick={() => handleSort('brand')}
-                >
-                  <div className="flex items-center gap-1">Brand <SortIcon column="brand"/></div>
-                </th>
-                <th 
-                  className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors"
-                  onClick={() => handleSort('counter')}
-                >
-                   <div className="flex items-center gap-1">Counter / Store <SortIcon column="counter"/></div>
-                </th>
-                <th 
-                   className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100 transition-colors"
-                   onClick={() => handleSort('amount')}
-                >
-                   <div className="flex items-center justify-end gap-1">Amount <SortIcon column="amount"/></div>
-                </th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                {/* Checkbox (Sales Only for now as Movements don't have bulk delete yet) */}
+                {dataSource === 'sales' && (
+                    <th className="px-4 py-4 w-10">
+                        <button onClick={toggleSelectAll} className="text-slate-400 hover:text-indigo-600">
+                            {selectedIds.size === currentData.length && currentData.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+                        </button>
+                    </th>
+                )}
+                
+                {/* Headers based on Source */}
+                {dataSource === 'sales' ? (
+                    <>
+                        <th className="px-6 py-4 cursor-pointer" onClick={() => handleSort('date')}><div className="flex items-center gap-1">Date <SortIcon column="date"/></div></th>
+                        <th className="px-6 py-4 cursor-pointer" onClick={() => handleSort('brand')}><div className="flex items-center gap-1">Brand <SortIcon column="brand"/></div></th>
+                        <th className="px-6 py-4 cursor-pointer" onClick={() => handleSort('counter')}><div className="flex items-center gap-1">Store <SortIcon column="counter"/></div></th>
+                        <th className="px-6 py-4 text-right cursor-pointer" onClick={() => handleSort('amount')}><div className="flex items-center justify-end gap-1">Amount <SortIcon column="amount"/></div></th>
+                        <th className="px-6 py-4 text-right">Actions</th>
+                    </>
+                ) : (
+                    <>
+                        <th className="px-6 py-4 cursor-pointer" onClick={() => handleSort('date')}><div className="flex items-center gap-1">Date <SortIcon column="date"/></div></th>
+                        <th className="px-6 py-4 cursor-pointer" onClick={() => handleSort('type')}><div className="flex items-center gap-1">Type <SortIcon column="type"/></div></th>
+                        <th className="px-6 py-4">Store</th>
+                        <th className="px-6 py-4">Product</th>
+                        <th className="px-6 py-4 text-right cursor-pointer" onClick={() => handleSort('quantity')}><div className="flex items-center justify-end gap-1">Qty <SortIcon column="quantity"/></div></th>
+                        <th className="px-6 py-4 text-right">Ref</th>
+                    </>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {currentData.map((record) => {
-                const isSelected = selectedIds.has(record.id);
-                return (
-                <tr key={record.id} className={`hover:bg-slate-50 transition-colors group ${isSelected ? 'bg-indigo-50/30' : ''}`}>
-                  <td className="px-4 py-4">
-                     <button onClick={() => toggleSelect(record.id)} className={`transition-colors ${isSelected ? 'text-indigo-600' : 'text-slate-300'}`}>
-                        {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
-                     </button>
-                  </td>
-                  <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-2">
-                    <Calendar size={14} className="text-slate-400" />
-                    {record.date}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border
-                        ${record.brand === 'Domino' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
-                          record.brand === 'OTTO' ? 'bg-pink-50 text-pink-700 border-pink-100' :
-                          'bg-amber-50 text-amber-700 border-amber-100'
-                        }
-                    `}>
-                      {record.brand}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {viewMode === 'list' ? (
-                      <button 
-                        onClick={() => handleStoreClick(record.counter)}
-                        className="text-indigo-600 hover:text-indigo-800 hover:underline text-left font-medium"
-                      >
-                        {record.counter}
-                      </button>
-                    ) : (
-                        <span className="text-slate-700 font-medium">{record.counter}</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right font-mono font-medium text-slate-700">
-                    {formatCurrency(record.amount)}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                         onClick={() => onEditRecord(record)}
-                         className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors" 
-                         title="Edit"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button 
-                         onClick={() => triggerSingleDelete(record.id)}
-                         className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors" 
-                         title="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )})}
+                if (dataSource === 'sales') {
+                    // SALES ROW
+                    const r = record as SaleRecord;
+                    const isSelected = selectedIds.has(r.id);
+                    return (
+                        <tr key={r.id} className={`hover:bg-slate-50 transition-colors group ${isSelected ? 'bg-indigo-50/30' : ''}`}>
+                            <td className="px-4 py-4">
+                                <button onClick={() => toggleSelect(r.id)} className={`transition-colors ${isSelected ? 'text-indigo-600' : 'text-slate-300'}`}>
+                                    {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+                                </button>
+                            </td>
+                            <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-2">
+                                <Calendar size={14} className="text-slate-400" />
+                                {r.date}
+                            </td>
+                            <td className="px-6 py-4">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border
+                                    ${r.brand === 'Domino' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
+                                    r.brand === 'OTTO' ? 'bg-pink-50 text-pink-700 border-pink-100' :
+                                    'bg-amber-50 text-amber-700 border-amber-100'
+                                    }
+                                `}>
+                                {r.brand}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4">
+                                {viewMode === 'list' ? (
+                                <button 
+                                    onClick={() => handleStoreClick(r.counter)}
+                                    className="text-indigo-600 hover:text-indigo-800 hover:underline text-left font-medium"
+                                >
+                                    {r.counter}
+                                </button>
+                                ) : (
+                                    <span className="text-slate-700 font-medium">{r.counter}</span>
+                                )}
+                            </td>
+                            <td className="px-6 py-4 text-right font-mono font-medium text-slate-700">
+                                {formatCurrency(r.amount)}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                    onClick={() => onEditRecord(r)}
+                                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors" 
+                                    title="Edit"
+                                >
+                                    <Edit2 size={16} />
+                                </button>
+                                <button 
+                                    onClick={() => triggerSingleDelete(r.id)}
+                                    className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors" 
+                                    title="Delete"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                                </div>
+                            </td>
+                        </tr>
+                    );
+                } else {
+                    // MOVEMENT ROW
+                    const m = record as StockMovement;
+                    return (
+                        <tr key={m.id} className="hover:bg-slate-50">
+                            <td className="px-6 py-4 font-mono text-xs">{m.date}</td>
+                            <td className="px-6 py-4">
+                                <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium border ${
+                                    m.type === 'Sale' || m.type === 'Transfer Out' ? 'bg-red-50 text-red-700 border-red-100' :
+                                    m.type === 'Restock' || m.type === 'Return' || m.type === 'Transfer In' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                    'bg-slate-50 text-slate-600 border-slate-100'
+                                }`}>
+                                    {m.quantity > 0 ? <ArrowUpRight size={12} /> : <ArrowDownLeft size={12} />}
+                                    {m.type}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4">
+                                <div className="font-medium text-slate-800">{m.storeName}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <div className="text-slate-800 font-medium">{m.productName}</div>
+                                <div className="text-xs text-slate-400 font-mono flex gap-2">
+                                    <span>{m.sku}</span>
+                                    <span className="text-slate-300">|</span>
+                                    <span className="text-indigo-600 font-medium">{m.variant}</span>
+                                </div>
+                            </td>
+                            <td className={`px-6 py-4 text-right font-bold ${m.quantity > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                {m.quantity > 0 ? '+' : ''}{m.quantity}
+                            </td>
+                            <td className="px-6 py-4 text-right font-mono text-xs text-slate-500">
+                                {m.reference || '-'}
+                            </td>
+                        </tr>
+                    );
+                }
+              })}
             </tbody>
           </table>
         </div>
@@ -498,6 +594,18 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
         count={itemsToDelete.length}
         itemName={itemToDeleteName}
       />
+
+      {/* Transaction Modal for Adding Manual Records directly from Data tab */}
+      {onRecordTransaction && (
+        <TransactionFormModal 
+            isOpen={isTransactionModalOpen}
+            onClose={() => setIsTransactionModalOpen(false)}
+            stores={stores}
+            products={products}
+            onSubmit={onRecordTransaction}
+            onTransfer={undefined} // Transfer usually initiated from inventory context or unified modal, simple record here
+        />
+      )}
 
     </div>
   );

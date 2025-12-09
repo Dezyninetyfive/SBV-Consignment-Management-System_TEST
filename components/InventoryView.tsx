@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useMemo } from 'react';
 import { Product, InventoryItem, StoreProfile, StockMovement, MovementType } from '../types';
 import { Search, Package, Tag, Filter, Grid, List, Layers, Plus, Edit, AlertTriangle, X, Download, Upload, Image as ImageIcon, ArrowUpDown, History, BarChart2 } from 'lucide-react';
@@ -7,7 +9,6 @@ import { SAMPLE_BRANDS, PRODUCT_CATEGORIES } from '../constants';
 import { ProductForm } from './ProductForm';
 import { ProductDetailModal } from './ProductDetailModal';
 import { StoreStockModal } from './StoreStockModal';
-import { StockMovementLog } from './StockMovementLog';
 import { ProductAnalytics } from './ProductAnalytics';
 import { TransactionFormModal } from './TransactionFormModal';
 
@@ -27,7 +28,7 @@ export const InventoryView: React.FC<Props> = ({
     products, inventory, stores, movements,
     onAddProduct, onUpdateProduct, onTransferStock, onImportClick, onRecordTransaction
 }) => {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'stock' | 'movement' | 'analytics'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'stock' | 'analytics'>('catalog');
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'gallery'>('grid');
   
   // Filtering & Sorting
@@ -169,9 +170,6 @@ export const InventoryView: React.FC<Props> = ({
              </button>
              <button onClick={() => setActiveTab('stock')} className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'stock' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                 <Layers size={16} /> Stock Position
-             </button>
-             <button onClick={() => setActiveTab('movement')} className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'movement' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-                <History size={16} /> Stock Movement
              </button>
              <button onClick={() => setActiveTab('analytics')} className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'analytics' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                 <BarChart2 size={16} /> Product Analytics
@@ -445,14 +443,6 @@ export const InventoryView: React.FC<Props> = ({
         </div>
       )}
 
-      {/* === VIEW: MOVEMENT LOG === */}
-      {activeTab === 'movement' && (
-         <StockMovementLog 
-           movements={movements} 
-           onAddTransaction={() => setIsTransactionModalOpen(true)}
-         />
-      )}
-
       {/* === VIEW: ANALYTICS === */}
       {activeTab === 'analytics' && (
          <ProductAnalytics movements={movements} products={products} />
@@ -489,7 +479,7 @@ export const InventoryView: React.FC<Props> = ({
         products={products}
       />
       
-      {/* Transaction Modal (Combined with Transfer) */}
+      {/* Transaction Modal (Transfer) */}
       <TransactionFormModal 
          isOpen={isTransactionModalOpen}
          onClose={() => setIsTransactionModalOpen(false)}

@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { SaleRecord, ForecastResponse, StoreProfile, PlanningConfig, Product, InventoryItem, Invoice, PaymentRecord, StockMovement, MovementType } from './types';
 import { generateMockHistory, generateMockStores, generateMockProducts, generateMockInventory, generateMockInvoices, generateMockStockMovements } from './utils/dataUtils';
@@ -28,7 +30,7 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [movements, setMovements] = useState<StockMovement[]>([]); // NEW state
+  const [movements, setMovements] = useState<StockMovement[]>([]); 
   
   const [forecastData, setForecastData] = useState<ForecastResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -51,12 +53,11 @@ const App: React.FC = () => {
   
   // Data Management States
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [importType, setImportType] = useState<'sales' | 'stores' | 'products' | 'inventory' | 'invoices'>('sales');
+  const [importType, setImportType] = useState<'sales' | 'stores' | 'products' | 'inventory' | 'invoices' | 'stock_movements'>('sales');
 
   // Initialize Data
   useEffect(() => {
     initializeData();
-    // Load local storage items
     const savedAdj = localStorage.getItem('forecastAdjustments');
     if (savedAdj) setAdjustments(JSON.parse(savedAdj));
 
@@ -127,7 +128,6 @@ const App: React.FC = () => {
     setError(null);
     try {
       const nextYear = new Date().getFullYear() + 1; 
-      // Pass the useAI flag and current adjustments to the service
       const response = await generateForecast(history, nextYear, { useAI, adjustments });
       setForecastData(response);
     } catch (err: any) {
@@ -144,7 +144,6 @@ const App: React.FC = () => {
     setAdjustments(newAdjustments);
     localStorage.setItem('forecastAdjustments', JSON.stringify(newAdjustments));
 
-    // Optimistically update the current forecast display
     if (forecastData) {
       const updatedForecasts = forecastData.forecasts.map(f => {
         if (f.month === month && f.brand === brand && f.counter === counter) {
@@ -191,7 +190,6 @@ const App: React.FC = () => {
 
   const handleAddOrUpdateRecord = (record: SaleRecord) => {
     setHistory((prev) => {
-      // Check if updating existing
       const exists = prev.some(r => r.id === record.id);
       let updated;
       if (exists) {
@@ -219,7 +217,7 @@ const App: React.FC = () => {
     setIsAddRecordModalOpen(true);
   };
 
-  // --- Store Management ---
+  // --- Store Management (WITH CASCADING UPDATES) ---
 
   const handleOpenStoreModal = (store: StoreProfile | null = null) => {
     setEditingStore(store);
@@ -230,44 +228,52 @@ const App: React.FC = () => {
     // 1. Update Stores List
     setStores(prev => {
       if (originalId) {
-        // Edit Mode: Find by original ID and replace
         return prev.map(s => s.id === originalId ? storeData : s);
       } else {
-        // Add Mode or fallback if originalId not provided but ID exists
         const exists = prev.some(s => s.id === storeData.id);
         if (exists) return prev.map(s => s.id === storeData.id ? storeData : s);
         return [storeData, ...prev];
       }
     });
 
-    // 2. Cascade Updates if ID Changed
+    // 2. Cascade Updates if ID Changed (Critical for linking)
     if (originalId && originalId !== storeData.id) {
        console.log(`Cascading ID update from ${originalId} to ${storeData.id}`);
-       // Update Inventory
        setInventory(prev => prev.map(item => 
          item.storeId === originalId ? { ...item, storeId: storeData.id, storeName: storeData.name } : item
        ));
-       // Update Invoices
        setInvoices(prev => prev.map(inv => 
          inv.storeId === originalId ? { ...inv, storeId: storeData.id, storeName: storeData.name } : inv
        ));
-       // Note: Sales History links by 'counter' (name), so we update name if needed next
+       setMovements(prev => prev.map(mov => 
+         mov.storeId === originalId ? { ...mov, storeId: storeData.id, storeName: storeData.name } : mov
+       ));
     }
 
-    // 3. Cascade Updates if Name Changed (Sales History relies on name)
-    // We need to find the old name. Since 'editingStore' holds the state when modal opened:
+    // 3. Cascade Updates if Name Changed (Critical for Display & Sales History)
+    // We compare with 'editingStore' which holds the state when modal opened
     if (editingStore && editingStore.name !== storeData.name) {
        const oldName = editingStore.name;
        console.log(`Cascading Name update from ${oldName} to ${storeData.name}`);
+       
+       // Update Sales History (linked by Name string)
        setHistory(prev => prev.map(r => 
          r.counter === oldName ? { ...r, counter: storeData.name } : r
        ));
-       // Also update inventory/invoices storeName just in case
+       
+       // Update Inventory (linked by ID, but stores Name denormalized)
        setInventory(prev => prev.map(item => 
-         item.storeName === oldName ? { ...item, storeName: storeData.name } : item
+         item.storeId === storeData.id ? { ...item, storeName: storeData.name } : item
        ));
+       
+       // Update Invoices
        setInvoices(prev => prev.map(inv => 
-         inv.storeName === oldName ? { ...inv, storeName: storeData.name } : inv
+         inv.storeId === storeData.id ? { ...inv, storeName: storeData.name } : inv
+       ));
+
+       // Update Movement Logs
+       setMovements(prev => prev.map(mov => 
+         mov.storeId === storeData.id ? { ...mov, storeName: storeData.name } : mov
        ));
     }
 
@@ -276,11 +282,11 @@ const App: React.FC = () => {
   };
 
   const handleDeleteStore = (storeId: string) => {
-    // Confirmation handled in StoreNetwork component via DeleteConfirmationModal
     setStores(prev => prev.filter(s => s.id !== storeId));
-    // Cascade delete
     setInventory(prev => prev.filter(i => i.storeId !== storeId));
     setInvoices(prev => prev.filter(i => i.storeId !== storeId));
+    // Ideally we keep movements for audit, but if deep clean is needed:
+    // setMovements(prev => prev.filter(m => m.storeId !== storeId)); 
   };
 
   const handleBulkUpdateStores = (ids: string[], updates: Partial<StoreProfile>) => {
@@ -289,7 +295,7 @@ const App: React.FC = () => {
     ));
   };
 
-  // --- Product & Inventory Management ---
+  // --- Product & Inventory Management (WITH CASCADING UPDATES) ---
 
   const handleAddProduct = (p: Product) => {
     setProducts(prev => [...prev, p]);
@@ -307,6 +313,9 @@ const App: React.FC = () => {
 
          // Cascade changes to inventory and movements if critical fields changed
          if (nameChanged || skuChanged || brandChanged) {
+            console.log(`Cascading Product update for ${p.sku}`);
+            
+            // Update Inventory (denormalized fields)
             setInventory(invPrev => invPrev.map(item => {
                if (item.productId === p.id) {
                   return {
@@ -319,6 +328,7 @@ const App: React.FC = () => {
                return item;
             }));
 
+            // Update Movement Logs (denormalized fields)
             setMovements(movPrev => movPrev.map(m => {
                if (m.productId === p.id) {
                   return {
@@ -404,7 +414,7 @@ const App: React.FC = () => {
          });
       }
 
-      // 3. Record Movements
+      // 3. Record Movements (Atomic update with Inventory)
       const newMovements: StockMovement[] = [
         {
           id: `mov-out-${Date.now()}`,
@@ -453,6 +463,11 @@ const App: React.FC = () => {
         signedQty = -Math.abs(data.quantity);
      } else if (['Restock', 'Transfer In', 'Return'].includes(data.type)) {
         signedQty = Math.abs(data.quantity);
+     } else if (data.type === 'Adjustment') {
+        // Adjustment could be positive or negative, usually user enters signed or we assume positive means "Add".
+        // Let's assume user enters positive for Gain, Negative for Loss.
+        // For now, let's treat the input as the delta.
+        signedQty = data.quantity; // Allow user to type negative numbers in form if needed
      }
      
      // 2. Add to Movement Log
@@ -544,7 +559,7 @@ const App: React.FC = () => {
 
   // --- Import ---
 
-  const openImportModal = (type: 'sales' | 'stores' | 'products' | 'inventory' | 'invoices') => {
+  const openImportModal = (type: 'sales' | 'stores' | 'products' | 'inventory' | 'invoices' | 'stock_movements') => {
     setImportType(type);
     setIsImportModalOpen(true);
   };
@@ -638,6 +653,81 @@ const App: React.FC = () => {
        return [...prev, ...newInvoices];
     });
     alert("Invoices imported successfully.");
+  };
+
+  const handleImportStockMovements = (data: any[]) => {
+     // 1. Add to movements
+     const newMovements: StockMovement[] = [];
+     const inventoryUpdates: Map<string, number> = new Map(); // key: "storeId|productId|variant", value: delta
+
+     data.forEach((row, i) => {
+        const store = stores.find(s => s.name === row.storeName);
+        const product = products.find(p => p.sku === row.sku);
+        if (!store || !product) return;
+
+        const qty = parseInt(row.quantity) || 0;
+        const variant = row.variant || 'Standard';
+
+        const mov: StockMovement = {
+           id: `mov-import-${Date.now()}-${i}`,
+           date: row.date,
+           type: row.type as MovementType,
+           storeId: store.id,
+           storeName: store.name,
+           productId: product.id,
+           productName: product.name,
+           sku: product.sku,
+           variant: variant,
+           quantity: qty,
+           reference: row.reference
+        };
+        newMovements.push(mov);
+
+        // Track inventory impact
+        // Note: quantity in movement log is signed (negative for Sale/Out), so we just add it
+        const key = `${store.id}|${product.id}|${variant}`;
+        inventoryUpdates.set(key, (inventoryUpdates.get(key) || 0) + qty);
+     });
+
+     setMovements(prev => [...prev, ...newMovements].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+     // 2. Update Inventory
+     if (newMovements.length > 0) {
+        setInventory(prev => {
+           const newInv = [...prev];
+           
+           inventoryUpdates.forEach((delta, key) => {
+              const [storeId, productId, variant] = key.split('|');
+              const idx = newInv.findIndex(i => i.storeId === storeId && i.productId === productId);
+              
+              if (idx > -1) {
+                 const item = newInv[idx];
+                 const newTotal = Math.max(0, item.quantity + delta);
+                 const newVariants = { ...(item.variantQuantities || {}) };
+                 newVariants[variant] = Math.max(0, (newVariants[variant] || 0) + delta);
+                 
+                 newInv[idx] = { ...item, quantity: newTotal, variantQuantities: newVariants };
+              } else if (delta > 0) {
+                 // New Item (only if positive stock added)
+                 const store = stores.find(s => s.id === storeId)!;
+                 const product = products.find(p => p.id === productId)!;
+                 newInv.push({
+                    id: `inv-${storeId}-${productId}`,
+                    storeId,
+                    storeName: store.name,
+                    productId,
+                    productName: product.name,
+                    sku: product.sku,
+                    brand: product.brand,
+                    quantity: delta,
+                    variantQuantities: { [variant]: delta }
+                 });
+              }
+           });
+           return newInv;
+        });
+     }
+     alert(`Imported ${newMovements.length} movements and updated inventory.`);
   };
 
   return (
@@ -776,10 +866,14 @@ const App: React.FC = () => {
         {view === 'data' && (
           <DataManagement 
             history={history}
-            onImportClick={() => openImportModal('sales')}
+            movements={movements}
+            onImportClick={(type) => openImportModal(type)}
             onEditRecord={handleEditRecordClick}
             onDeleteRecord={handleDeleteRecord}
             onBulkDelete={handleBulkDeleteRecords}
+            onRecordTransaction={handleRecordStockTransaction}
+            stores={stores}
+            products={products}
           />
         )}
         
@@ -1018,6 +1112,7 @@ const App: React.FC = () => {
           onImportProducts={handleImportProducts}
           onImportInventory={handleImportInventory}
           onImportInvoices={handleImportInvoices}
+          onImportStockMovements={handleImportStockMovements}
         />
 
       </main>

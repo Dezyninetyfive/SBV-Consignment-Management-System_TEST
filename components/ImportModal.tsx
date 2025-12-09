@@ -1,23 +1,26 @@
 
+
+
 import React, { useState, useRef } from 'react';
 import { X, Upload, FileText, AlertCircle, CheckCircle, Download } from 'lucide-react';
-import { SaleRecord, StoreProfile, Product, InventoryItem, Invoice } from '../types';
+import { SaleRecord, StoreProfile, Product, InventoryItem, Invoice, StockMovement } from '../types';
 import { CSV_TEMPLATES } from '../constants';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  type: 'sales' | 'stores' | 'products' | 'inventory' | 'invoices';
+  type: 'sales' | 'stores' | 'products' | 'inventory' | 'invoices' | 'stock_movements';
   onImportSales?: (data: SaleRecord[]) => void;
   onImportStores?: (data: StoreProfile[]) => void;
   onImportProducts?: (data: Product[]) => void;
   onImportInventory?: (data: any[]) => void;
   onImportInvoices?: (data: any[]) => void;
+  onImportStockMovements?: (data: any[]) => void;
 }
 
 export const ImportModal: React.FC<Props> = ({ 
   isOpen, onClose, type, 
-  onImportSales, onImportStores, onImportProducts, onImportInventory, onImportInvoices
+  onImportSales, onImportStores, onImportProducts, onImportInventory, onImportInvoices, onImportStockMovements
 }) => {
   const [csvContent, setCsvContent] = useState('');
   const [previewData, setPreviewData] = useState<any[]>([]);
@@ -63,6 +66,9 @@ export const ImportModal: React.FC<Props> = ({
       }
       if (type === 'invoices' && (!headers.includes('storename') || !headers.includes('amount'))) {
          throw new Error("Missing columns: StoreName, Amount");
+      }
+      if (type === 'stock_movements' && (!headers.includes('storename') || !headers.includes('sku') || !headers.includes('quantity'))) {
+         throw new Error("Missing columns: StoreName, SKU, Quantity");
       }
 
       for (let i = 1; i < lines.length; i++) {
@@ -123,6 +129,16 @@ export const ImportModal: React.FC<Props> = ({
              amount: parseFloat(obj.amount) || 0,
              dueDate: obj.duedate || new Date().toISOString().split('T')[0]
           });
+        } else if (type === 'stock_movements') {
+          results.push({
+             date: obj.date || new Date().toISOString().split('T')[0],
+             type: obj.type || 'Adjustment',
+             storeName: obj.storename,
+             sku: obj.sku,
+             variant: obj.variant || 'Standard',
+             quantity: parseInt(obj.quantity) || 0,
+             reference: obj.reference || ''
+          });
         }
       }
 
@@ -139,6 +155,7 @@ export const ImportModal: React.FC<Props> = ({
     if (type === 'products' && onImportProducts) onImportProducts(previewData);
     if (type === 'inventory' && onImportInventory) onImportInventory(previewData);
     if (type === 'invoices' && onImportInvoices) onImportInvoices(previewData);
+    if (type === 'stock_movements' && onImportStockMovements) onImportStockMovements(previewData);
     
     onClose();
     setCsvContent('');
@@ -152,6 +169,7 @@ export const ImportModal: React.FC<Props> = ({
       case 'products': return CSV_TEMPLATES.PRODUCTS;
       case 'inventory': return CSV_TEMPLATES.INVENTORY;
       case 'invoices': return CSV_TEMPLATES.INVOICES;
+      case 'stock_movements': return CSV_TEMPLATES.STOCK_MOVEMENTS;
       default: return '';
     }
   };
@@ -164,7 +182,7 @@ export const ImportModal: React.FC<Props> = ({
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 uppercase text-sm tracking-wide">
             <Upload size={18} className="text-indigo-600" />
-            Import {type}
+            Import {type.replace('_', ' ')}
           </h3>
           <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
         </div>
