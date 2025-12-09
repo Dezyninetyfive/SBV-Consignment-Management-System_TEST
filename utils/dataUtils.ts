@@ -38,6 +38,13 @@ export const generateMockStores = (): StoreProfile[] => {
     // Chance for 3rd brand (40% if already has 2)
     if (assignedBrands.length === 2 && Math.random() > 0.6) assignedBrands.push(shuffledBrands[2]);
     
+    // Assign Margins
+    const margins: Record<string, number> = {};
+    assignedBrands.forEach(b => {
+      // Random margin between 20% and 35%
+      margins[b] = 20 + Math.floor(Math.random() * 16); 
+    });
+
     // Credit Terms
     const term = CREDIT_TERMS[Math.floor(Math.random() * CREDIT_TERMS.length)];
     
@@ -51,6 +58,7 @@ export const generateMockStores = (): StoreProfile[] => {
       address: `${Math.floor(Math.random() * 999) + 1} Main Street, District ${Math.floor(Math.random() * 20) + 1}`,
       postalCode: `${Math.floor(10000 + Math.random() * 90000)}`,
       carriedBrands: assignedBrands.sort(),
+      margins,
       creditTerm: term,
       riskStatus: Math.random() > 0.9 ? 'High' : (Math.random() > 0.7 ? 'Medium' : 'Low')
     });

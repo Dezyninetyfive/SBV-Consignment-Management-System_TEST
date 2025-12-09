@@ -9,6 +9,7 @@ export interface StoreProfile {
   region: string;
   postalCode: string;
   carriedBrands: string[]; // List of brands this store carries
+  margins: Record<string, number>; // NEW: Commission % per brand (e.g. {'Domino': 25})
   creditTerm: number; // days, e.g. 30, 45, 60
   riskStatus: 'Low' | 'Medium' | 'High';
 }

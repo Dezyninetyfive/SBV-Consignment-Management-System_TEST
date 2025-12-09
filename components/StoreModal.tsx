@@ -21,16 +21,34 @@ export const StoreModal: React.FC<Props> = ({ store, onClose, onSave }) => {
     region: 'Central',
     postalCode: '',
     carriedBrands: [],
+    margins: {},
     creditTerm: 30,
     riskStatus: 'Low'
   });
 
   const toggleBrand = (brand: string) => {
+    const isSelected = formData.carriedBrands.includes(brand);
+    let newBrands = isSelected
+      ? formData.carriedBrands.filter(b => b !== brand)
+      : [...formData.carriedBrands, brand];
+    
+    // Initialize margin if adding
+    let newMargins = { ...formData.margins };
+    if (!isSelected && !newMargins[brand]) {
+      newMargins[brand] = 25; // Default 25%
+    }
+    
     setFormData(prev => ({
       ...prev,
-      carriedBrands: prev.carriedBrands.includes(brand)
-        ? prev.carriedBrands.filter(b => b !== brand)
-        : [...prev.carriedBrands, brand]
+      carriedBrands: newBrands,
+      margins: newMargins
+    }));
+  };
+
+  const handleMarginChange = (brand: string, value: number) => {
+    setFormData(prev => ({
+      ...prev,
+      margins: { ...prev.margins, [brand]: value }
     }));
   };
 
@@ -156,24 +174,39 @@ export const StoreModal: React.FC<Props> = ({ store, onClose, onSave }) => {
           </div>
 
           <div className="pt-2">
-            <label className="text-xs font-semibold text-slate-500 uppercase block mb-2">Carried Brands</label>
-            <div className="flex gap-3">
-              {SAMPLE_BRANDS.map(brand => (
-                <label key={brand} className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all
-                  ${formData.carriedBrands.includes(brand) 
-                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-medium' 
-                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                  }
-                `}>
-                  <input 
-                    type="checkbox" 
-                    className="hidden" 
-                    checked={formData.carriedBrands.includes(brand)}
-                    onChange={() => toggleBrand(brand)}
-                  />
-                  {brand}
-                </label>
-              ))}
+            <label className="text-xs font-semibold text-slate-500 uppercase block mb-2">Carried Brands & Margins</label>
+            <div className="grid grid-cols-1 gap-2">
+              {SAMPLE_BRANDS.map(brand => {
+                const isChecked = formData.carriedBrands.includes(brand);
+                return (
+                  <div key={brand} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${isChecked ? 'bg-slate-50 border-indigo-200' : 'bg-white border-slate-200'}`}>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        className="rounded text-indigo-600 focus:ring-indigo-500" 
+                        checked={isChecked}
+                        onChange={() => toggleBrand(brand)}
+                      />
+                      <span className={`font-medium ${isChecked ? 'text-indigo-700' : 'text-slate-500'}`}>{brand}</span>
+                    </label>
+                    {isChecked && (
+                       <div className="flex items-center gap-2">
+                          <label className="text-xs text-slate-500">Margin:</label>
+                          <div className="relative w-20">
+                            <input 
+                              type="number" 
+                              min="0" max="100"
+                              className="w-full pl-2 pr-6 py-1 border border-slate-200 rounded text-sm focus:outline-none focus:border-indigo-400"
+                              value={formData.margins?.[brand] || 25}
+                              onChange={(e) => handleMarginChange(brand, parseFloat(e.target.value))}
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
+                          </div>
+                       </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
