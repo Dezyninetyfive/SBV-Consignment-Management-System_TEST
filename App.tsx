@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { SaleRecord, ForecastResponse, StoreProfile, PlanningConfig, Product, InventoryItem, Invoice, PaymentRecord } from './types';
-import { generateMockHistory, generateMockStores, generateMockProducts, generateMockInventory, generateMockInvoices } from './utils/dataUtils';
+import { SaleRecord, ForecastResponse, StoreProfile, PlanningConfig, Product, InventoryItem, Invoice, PaymentRecord, StockMovement } from './types';
+import { generateMockHistory, generateMockStores, generateMockProducts, generateMockInventory, generateMockInvoices, generateMockStockMovements } from './utils/dataUtils';
 import { generateForecast } from './services/geminiService';
 import { MetricsGrid } from './components/MetricsGrid';
 import { ChartsSection } from './components/ChartsSection';
 import { SalesIntelligence } from './components/SalesIntelligence';
+import { DashboardARSummary } from './components/DashboardARSummary';
 import { AddRecordModal } from './components/AddRecordModal';
 import { StoreNetwork } from './components/StoreNetwork';
 import { StoreModal } from './components/StoreModal';
@@ -27,6 +28,7 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [movements, setMovements] = useState<StockMovement[]>([]); // NEW state
   
   const [forecastData, setForecastData] = useState<ForecastResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,6 +81,9 @@ const App: React.FC = () => {
 
     const mockInvoices = generateMockInvoices(mockStores);
     setInvoices(mockInvoices);
+
+    const mockMovements = generateMockStockMovements(mockInventory, mockProducts);
+    setMovements(mockMovements);
     
     setForecastData(null);
     setError(null);
@@ -298,6 +303,12 @@ const App: React.FC = () => {
   };
 
   const handleTransferStock = (fromStoreId: string, toStoreId: string, productId: string, qty: number) => {
+    const product = products.find(p => p.id === productId);
+    const sourceStore = stores.find(s => s.id === fromStoreId);
+    const destStore = stores.find(s => s.id === toStoreId);
+
+    if (!product || !sourceStore || !destStore) return;
+
     setInventory(prev => {
       // Logic: find item in source, decrease. find/create in dest, increase.
       const newState = [...prev];
@@ -317,21 +328,51 @@ const App: React.FC = () => {
          newState[destIdx] = { ...newState[destIdx], quantity: newState[destIdx].quantity + qty };
       } else {
          // Create new item entry
-         const store = stores.find(s => s.id === toStoreId);
-         const product = products.find(p => p.id === productId);
-         if (store && product) {
-            newState.push({
-               id: `inv-${toStoreId}-${productId}`,
-               storeId: toStoreId,
-               storeName: store.name,
-               productId: productId,
-               productName: product.name,
-               sku: product.sku,
-               brand: product.brand,
-               quantity: qty
-            });
-         }
+         newState.push({
+            id: `inv-${toStoreId}-${productId}`,
+            storeId: toStoreId,
+            storeName: destStore.name,
+            productId: productId,
+            productName: product.name,
+            sku: product.sku,
+            brand: product.brand,
+            quantity: qty,
+            variantQuantities: {} // Simple transfer for now
+         });
       }
+
+      // Record Movements
+      const today = new Date().toISOString().split('T')[0];
+      const newMovements: StockMovement[] = [
+        {
+          id: `mov-out-${Date.now()}`,
+          date: today,
+          type: 'Transfer Out',
+          storeId: sourceStore.id,
+          storeName: sourceStore.name,
+          productId: product.id,
+          productName: product.name,
+          sku: product.sku,
+          variant: 'Standard',
+          quantity: -qty,
+          reference: `TR TO ${destStore.name}`
+        },
+        {
+          id: `mov-in-${Date.now()}`,
+          date: today,
+          type: 'Transfer In',
+          storeId: destStore.id,
+          storeName: destStore.name,
+          productId: product.id,
+          productName: product.name,
+          sku: product.sku,
+          variant: 'Standard',
+          quantity: qty,
+          reference: `TR FROM ${sourceStore.name}`
+        }
+      ];
+      setMovements(prevM => [...newMovements, ...prevM]);
+
       return newState;
     });
     alert("Stock Transfer Successful");
@@ -427,7 +468,8 @@ const App: React.FC = () => {
                productName: product.name,
                sku: product.sku,
                brand: product.brand,
-               quantity: qty
+               quantity: qty,
+               variantQuantities: {}
             });
           }
           count++;
@@ -616,6 +658,7 @@ const App: React.FC = () => {
             products={products}
             inventory={inventory}
             stores={stores}
+            movements={movements} // Pass movements
             onAddProduct={handleAddProduct}
             onUpdateProduct={handleUpdateProduct}
             onTransferStock={handleTransferStock}
@@ -751,10 +794,22 @@ const App: React.FC = () => {
 
             {/* Content Grid */}
             <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 delay-75">
-              <MetricsGrid 
-                history={history} 
-                forecast={forecastData?.forecasts || []} 
-              />
+              
+              {/* TOP ROW: Metrics + AR Summary */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                   <MetricsGrid 
+                     history={history} 
+                     forecast={forecastData?.forecasts || []} 
+                   />
+                </div>
+                <div className="lg:col-span-1 h-full pb-8 lg:pb-0">
+                   <DashboardARSummary 
+                     invoices={invoices}
+                     onViewAllClick={() => setView('ar')}
+                   />
+                </div>
+              </div>
 
               {/* NEW: Sales Intelligence Section */}
               <SalesIntelligence history={history} stores={stores} />

@@ -1,18 +1,20 @@
 
-
 import React, { useState, useMemo } from 'react';
-import { Product, InventoryItem, StoreProfile } from '../types';
-import { Search, Package, Tag, Filter, Grid, List, Layers, Plus, ArrowRightLeft, Edit, AlertTriangle, X, Download, Upload, Image as ImageIcon, ArrowUpDown } from 'lucide-react';
+import { Product, InventoryItem, StoreProfile, StockMovement } from '../types';
+import { Search, Package, Tag, Filter, Grid, List, Layers, Plus, ArrowRightLeft, Edit, AlertTriangle, X, Download, Upload, Image as ImageIcon, ArrowUpDown, History, BarChart2 } from 'lucide-react';
 import { formatCurrency } from '../utils/dataUtils';
 import { SAMPLE_BRANDS, PRODUCT_CATEGORIES } from '../constants';
 import { ProductForm } from './ProductForm';
 import { ProductDetailModal } from './ProductDetailModal';
 import { StoreStockModal } from './StoreStockModal';
+import { StockMovementLog } from './StockMovementLog';
+import { ProductAnalytics } from './ProductAnalytics';
 
 interface Props {
   products: Product[];
   inventory: InventoryItem[];
   stores: StoreProfile[];
+  movements: StockMovement[]; // NEW prop
   onAddProduct: (p: Product) => void;
   onUpdateProduct: (p: Product) => void;
   onTransferStock: (fromStoreId: string, toStoreId: string, productId: string, qty: number) => void;
@@ -20,10 +22,10 @@ interface Props {
 }
 
 export const InventoryView: React.FC<Props> = ({ 
-    products, inventory, stores, 
+    products, inventory, stores, movements,
     onAddProduct, onUpdateProduct, onTransferStock, onImportClick 
 }) => {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'stock'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'stock' | 'movement' | 'analytics'>('catalog');
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'gallery'>('grid');
   
   // Filtering & Sorting
@@ -138,7 +140,7 @@ export const InventoryView: React.FC<Props> = ({
             <Package className="text-indigo-600" />
             Inventory Management
           </h2>
-          <p className="text-slate-500 text-sm">Manage products catalog and stock levels across outlets</p>
+          <p className="text-slate-500 text-sm">Manage products catalog, stock levels, and movements across outlets</p>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full xl:w-auto">
@@ -160,29 +162,30 @@ export const InventoryView: React.FC<Props> = ({
             >
                 <Upload size={16} /> Import
             </button>
-            <div className="bg-slate-100 p-1 rounded-lg flex items-center">
-                <button
-                    onClick={() => setActiveTab('catalog')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                    activeTab === 'catalog' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                >
-                    Product Master
-                </button>
-                <button
-                    onClick={() => setActiveTab('stock')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                    activeTab === 'stock' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                >
-                    Stock Position
-                </button>
-            </div>
         </div>
       </div>
+      
+      {/* Tab Navigation */}
+      <div className="bg-white border-b border-slate-200 sticky top-16 z-10 px-4 -mx-4 sm:mx-0 sm:px-0 sm:static">
+          <div className="flex gap-6 overflow-x-auto pb-1px">
+             <button onClick={() => setActiveTab('catalog')} className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'catalog' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <Package size={16} /> Product Master
+             </button>
+             <button onClick={() => setActiveTab('stock')} className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'stock' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <Layers size={16} /> Stock Position
+             </button>
+             <button onClick={() => setActiveTab('movement')} className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'movement' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <History size={16} /> Stock Movement
+             </button>
+             <button onClick={() => setActiveTab('analytics')} className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'analytics' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <BarChart2 size={16} /> Product Analytics
+             </button>
+          </div>
+      </div>
 
-      {/* Toolbar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col lg:flex-row gap-4 justify-between items-center sticky top-20 z-20">
+      {/* Toolbar - Only show for Catalog and Stock tabs for filtering logic re-use */}
+      {(activeTab === 'catalog' || activeTab === 'stock') && (
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col lg:flex-row gap-4 justify-between items-center z-20">
         
         <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-1">
              <div className="relative flex-1">
@@ -264,7 +267,9 @@ export const InventoryView: React.FC<Props> = ({
             )}
         </div>
       </div>
+      )}
 
+      {/* === VIEW: CATALOG === */}
       {activeTab === 'catalog' && (
         <>
             {/* LIST VIEW */}
@@ -395,6 +400,7 @@ export const InventoryView: React.FC<Props> = ({
         </>
       )}
 
+      {/* === VIEW: STOCK POSITION === */}
       {activeTab === 'stock' && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -447,6 +453,16 @@ export const InventoryView: React.FC<Props> = ({
              <div className="p-12 text-center text-slate-400">No inventory data available.</div>
           )}
         </div>
+      )}
+
+      {/* === VIEW: MOVEMENT LOG === */}
+      {activeTab === 'movement' && (
+         <StockMovementLog movements={movements} />
+      )}
+
+      {/* === VIEW: ANALYTICS === */}
+      {activeTab === 'analytics' && (
+         <ProductAnalytics movements={movements} products={products} />
       )}
 
       {/* Product Form Modal */}

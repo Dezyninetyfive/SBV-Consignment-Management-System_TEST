@@ -1,5 +1,5 @@
 
-import { SaleRecord, ForecastRecord, AggregatedData, StoreProfile, Product, InventoryItem, Invoice } from '../types';
+import { SaleRecord, ForecastRecord, AggregatedData, StoreProfile, Product, InventoryItem, Invoice, StockMovement } from '../types';
 import { SAMPLE_BRANDS, PRODUCT_CATEGORIES, CREDIT_TERMS } from '../constants';
 
 const RETAIL_GROUPS = ['Central Group', 'The Mall Group', 'Aeon', 'Robinson', 'Siam Piwat', 'Independent'];
@@ -113,6 +113,9 @@ export const generateMockProducts = (): Product[] => {
   const products: Product[] = [];
   let idCounter = 1;
 
+  const COLORS = ['Red', 'Blue', 'Black', 'White', 'Beige', 'Navy', 'Olive'];
+  const SIZES = ['S', 'M', 'L', 'XL'];
+
   SAMPLE_BRANDS.forEach(brand => {
     const categories = PRODUCT_CATEGORIES[brand as keyof typeof PRODUCT_CATEGORIES] || [];
     categories.forEach(cat => {
@@ -121,17 +124,21 @@ export const generateMockProducts = (): Product[] => {
         const cost = 20 + Math.random() * 80;
         const price = cost * (2 + Math.random());
         
+        // Generate Variants (Color + Size combinations)
+        const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+        const variants = SIZES.map(s => `${color}-${s}`);
+
         products.push({
           id: `p-${idCounter}`,
           sku: `${brand.substring(0,3).toUpperCase()}-${cat.substring(0,3).toUpperCase()}-00${i}`,
-          name: `${brand} ${cat} Style #${i}`,
+          name: `${brand} ${cat} Style #${i} (${color})`,
           brand,
           category: cat,
           subCategory: 'General',
           cost: Math.floor(cost * 100) / 100,
           price: Math.floor(price * 100) / 100,
           imageUrl: `https://placehold.co/400x500/f1f5f9/475569?text=${brand}+${cat}+${i}`,
-          variants: ['S', 'M', 'L', 'XL']
+          variants: variants
         });
         idCounter++;
       }
@@ -152,6 +159,25 @@ export const generateMockInventory = (stores: StoreProfile[], products: Product[
       // Randomly select some products to be in stock (80% of catalog)
       brandProducts.forEach(prod => {
         if (Math.random() > 0.2) {
+          const totalQty = Math.floor(Math.random() * 50); // 0 to 50 units
+          
+          // Distribute quantity across variants
+          const variantQuantities: Record<string, number> = {};
+          if (totalQty > 0 && prod.variants.length > 0) {
+            let remaining = totalQty;
+            prod.variants.forEach((v, index) => {
+              if (index === prod.variants.length - 1) {
+                variantQuantities[v] = remaining;
+              } else {
+                const qty = Math.floor(Math.random() * (remaining + 1));
+                variantQuantities[v] = qty;
+                remaining -= qty;
+              }
+            });
+          } else if (totalQty > 0) {
+             variantQuantities['Standard'] = totalQty;
+          }
+
           inventory.push({
             id: `inv-${store.id}-${prod.id}`,
             storeId: store.id,
@@ -160,13 +186,79 @@ export const generateMockInventory = (stores: StoreProfile[], products: Product[
             sku: prod.sku,
             productName: prod.name,
             brand: prod.brand,
-            quantity: Math.floor(Math.random() * 50) // 0 to 50 units
+            quantity: totalQty,
+            variantQuantities
           });
         }
       });
     });
   });
   return inventory;
+};
+
+// NEW: Generate Stock Movement Log
+export const generateMockStockMovements = (inventory: InventoryItem[], products: Product[]): StockMovement[] => {
+  const movements: StockMovement[] = [];
+  const today = new Date();
+
+  // Create random movements for the last 30 days
+  inventory.forEach(inv => {
+    // 1. Initial Restock (30 days ago)
+    movements.push({
+       id: `mov-restock-${inv.id}`,
+       date: new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+       type: 'Restock',
+       storeId: inv.storeId,
+       storeName: inv.storeName,
+       productId: inv.productId,
+       productName: inv.productName,
+       sku: inv.sku,
+       variant: 'Multiple',
+       quantity: inv.quantity + Math.floor(Math.random() * 10), // Was slightly higher before sales
+       reference: 'PO-BATCH-01'
+    });
+
+    // 2. Simulate random sales transactions over the last month
+    const salesCount = Math.floor(Math.random() * 5);
+    for(let i=0; i<salesCount; i++) {
+       const daysAgo = Math.floor(Math.random() * 25);
+       const qtySold = Math.floor(Math.random() * 2) + 1;
+       const variant = Object.keys(inv.variantQuantities)[0] || 'Standard'; // Simplified
+
+       movements.push({
+         id: `mov-sale-${inv.id}-${i}`,
+         date: new Date(today.getTime() - (daysAgo * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+         type: 'Sale',
+         storeId: inv.storeId,
+         storeName: inv.storeName,
+         productId: inv.productId,
+         productName: inv.productName,
+         sku: inv.sku,
+         variant: variant,
+         quantity: -qtySold,
+         reference: `POS-${Math.floor(Math.random() * 10000)}`
+       });
+    }
+
+    // 3. Occasional Transfer Out (5% chance)
+    if(Math.random() > 0.95) {
+       movements.push({
+         id: `mov-trans-${inv.id}`,
+         date: new Date(today.getTime() - (2 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+         type: 'Transfer Out',
+         storeId: inv.storeId,
+         storeName: inv.storeName,
+         productId: inv.productId,
+         productName: inv.productName,
+         sku: inv.sku,
+         variant: 'Standard',
+         quantity: -Math.floor(Math.random() * 5) - 1,
+         reference: 'TR-AUTO-BAL'
+       });
+    }
+  });
+
+  return movements.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 };
 
 // NEW: Generate Invoices (AR)

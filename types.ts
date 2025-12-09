@@ -70,6 +70,23 @@ export interface InventoryItem {
   productName: string;
   brand: string;
   quantity: number;
+  variantQuantities: Record<string, number>; // NEW: Track specific quantity per variant
+}
+
+export type MovementType = 'Sale' | 'Restock' | 'Transfer In' | 'Transfer Out' | 'Adjustment' | 'Return';
+
+export interface StockMovement {
+  id: string;
+  date: string;
+  type: MovementType;
+  storeId: string;
+  storeName: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  variant: string; // "Standard" or "Red-S"
+  quantity: number; // Positive (In) or Negative (Out)
+  reference?: string;
 }
 
 export interface PaymentRecord {

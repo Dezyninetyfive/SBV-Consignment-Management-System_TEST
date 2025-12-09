@@ -25,7 +25,7 @@ export const StoreStockModal: React.FC<Props> = ({ storeName, items, isOpen, onC
   return (
     <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95">
+       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95">
           <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
               <div>
                   <h3 className="text-lg font-bold text-slate-800">{storeName}</h3>
@@ -43,7 +43,8 @@ export const StoreStockModal: React.FC<Props> = ({ storeName, items, isOpen, onC
                           <th className="px-6 py-3 bg-slate-50">SKU</th>
                           <th className="px-6 py-3 bg-slate-50">Product Name</th>
                           <th className="px-6 py-3 bg-slate-50">Brand</th>
-                          <th className="px-6 py-3 text-right bg-slate-50">Quantity</th>
+                          <th className="px-6 py-3 bg-slate-50">Variant Breakdown</th>
+                          <th className="px-6 py-3 text-right bg-slate-50">Total Qty</th>
                           <th className="px-6 py-3 text-right bg-slate-50">Unit Cost</th>
                           <th className="px-6 py-3 text-right bg-slate-50">Total Value</th>
                       </tr>
@@ -51,6 +52,8 @@ export const StoreStockModal: React.FC<Props> = ({ storeName, items, isOpen, onC
                   <tbody className="divide-y divide-slate-100">
                       {items.map(item => {
                           const cost = getProductCost(item.productId);
+                          const variantEntries = Object.entries(item.variantQuantities || {});
+                          
                           return (
                               <tr key={item.id} className="hover:bg-slate-50">
                                   <td className="px-6 py-3 font-mono text-xs">{item.sku}</td>
@@ -71,6 +74,19 @@ export const StoreStockModal: React.FC<Props> = ({ storeName, items, isOpen, onC
                                           {item.brand}
                                       </span>
                                   </td>
+                                  <td className="px-6 py-3">
+                                      {variantEntries.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {variantEntries.map(([variant, qty]) => (qty as number) > 0 && (
+                                                <span key={variant} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 border border-slate-200 text-slate-600">
+                                                    {variant}: <span className="ml-1 text-slate-900 font-bold">{qty}</span>
+                                                </span>
+                                            ))}
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-slate-400">Standard: {item.quantity}</span>
+                                      )}
+                                  </td>
                                   <td className="px-6 py-3 text-right font-medium">{item.quantity}</td>
                                   <td className="px-6 py-3 text-right text-slate-500">{formatCurrency(cost)}</td>
                                   <td className="px-6 py-3 text-right font-medium text-emerald-600">{formatCurrency(cost * item.quantity)}</td>
@@ -88,6 +104,12 @@ export const StoreStockModal: React.FC<Props> = ({ storeName, items, isOpen, onC
               <div className="text-sm">
                   <span className="text-slate-500">Total Items: </span>
                   <span className="font-bold text-slate-800">{items.reduce((acc, i) => acc + i.quantity, 0)}</span>
+              </div>
+              <div className="text-sm">
+                  <span className="text-slate-500">Total Store Value: </span>
+                  <span className="font-bold text-emerald-700">
+                    {formatCurrency(items.reduce((acc, i) => acc + (getProductCost(i.productId) * i.quantity), 0))}
+                  </span>
               </div>
               <button 
                   onClick={onClose}
