@@ -59,7 +59,7 @@ export const ProductAnalytics: React.FC<Props> = ({ movements, products }) => {
              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                 <TrendingUp className="text-emerald-600" /> Top 10 Fast Moving Products
              </h3>
-             <div className="h-[300px] w-full">
+             <div className="h-[300px] w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
                    <BarChart data={analyticsData.topMovers} layout="vertical" margin={{ left: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
@@ -87,7 +87,7 @@ export const ProductAnalytics: React.FC<Props> = ({ movements, products }) => {
              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                 <Package className="text-indigo-600" /> Best Selling Variants (Size/Color)
              </h3>
-             <div className="h-[300px] w-full">
+             <div className="h-[300px] w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
                    <BarChart data={analyticsData.variantData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />

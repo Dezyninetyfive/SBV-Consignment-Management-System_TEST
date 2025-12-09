@@ -313,7 +313,7 @@ export const SalesAnalysis: React.FC<Props> = ({ history, planningData, stores }
             {/* Monthly Chart */}
             <div className="lg:col-span-3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                <h3 className="font-bold text-slate-800 mb-6">Monthly Performance Trend</h3>
-               <div className="h-[300px] w-full">
+               <div className="h-[300px] w-full min-w-0">
                   <ResponsiveContainer width="100%" height="100%">
                      <ComposedChart data={monthData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />

@@ -78,7 +78,7 @@ export const SalesIntelligence: React.FC<Props> = ({ history, stores, onStoreCli
           <h3 className="text-sm font-bold text-slate-500 uppercase mb-4 flex items-center gap-2">
             <MapIcon size={16} /> Sales by Region
           </h3>
-          <div className="h-[250px] w-full">
+          <div className="h-[250px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={salesByRegion} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
@@ -111,7 +111,7 @@ export const SalesIntelligence: React.FC<Props> = ({ history, stores, onStoreCli
           <h3 className="text-sm font-bold text-slate-500 uppercase mb-4 flex items-center gap-2">
             <Building2 size={16} /> Sales by Retail Group
           </h3>
-          <div className="h-[250px] w-full">
+          <div className="h-[250px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={salesByGroup} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />

@@ -2,8 +2,8 @@
 import React, { useMemo, useState } from 'react';
 import { Invoice, StoreProfile } from '../types';
 import { formatCurrency } from '../utils/dataUtils';
-import { AlertCircle, Clock, CheckCircle, DollarSign, Calendar, Filter, Download, ArrowUpDown, CreditCard, Upload, Search, ArrowLeft, FileText } from 'lucide-react';
-import { SAMPLE_BRANDS, CREDIT_TERMS } from '../constants';
+import { Clock, DollarSign, Download, Upload, Search, ArrowLeft, FileText, CornerDownRight } from 'lucide-react';
+import { SAMPLE_BRANDS } from '../constants';
 
 interface Props {
   invoices: Invoice[];
@@ -65,11 +65,15 @@ export const AccountsReceivable: React.FC<Props> = ({ invoices, stores, onOpenPa
         };
       }
 
+      // Calculate remaining. For Credit Notes, amount is negative, so it reduces balance.
       const remaining = inv.amount - (inv.paidAmount || 0);
+      
       report[key].total += inv.amount;
       report[key].paid += (inv.paidAmount || 0);
       report[key].balance += remaining;
 
+      // Only age positive debt. Negative balance (Credit) stays in Current usually, or acts as immediate relief.
+      // We will bucket it based on date like normal, but it will be negative.
       const dueDate = new Date(inv.dueDate);
       const diffTime = today.getTime() - dueDate.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -114,16 +118,19 @@ export const AccountsReceivable: React.FC<Props> = ({ invoices, stores, onOpenPa
     const transactions: any[] = [];
     
     invoices.filter(inv => inv.storeId === selectedStoreId).forEach(inv => {
-      // 1. Add Invoice (Debit)
+      // 1. Add Invoice / Credit Note
+      const isCreditNote = inv.type === 'Credit Note' || inv.amount < 0;
+      
       transactions.push({
         id: inv.id,
         date: inv.issueDate,
-        type: 'Invoice',
+        type: inv.type || (inv.amount < 0 ? 'Credit Note' : 'Invoice'),
         ref: inv.id.split('-').pop(), // Simple ref
         brand: inv.brand,
-        debit: inv.amount,
-        credit: 0,
-        description: `Invoice #${inv.id.slice(-6)}`
+        // If Credit Note (negative amount), it is a CREDIT.
+        debit: isCreditNote ? 0 : inv.amount,
+        credit: isCreditNote ? Math.abs(inv.amount) : 0,
+        description: isCreditNote ? `Credit Note (Return)` : `Invoice #${inv.id.slice(-6)}`
       });
 
       // 2. Add Payments (Credit)
@@ -201,7 +208,7 @@ export const AccountsReceivable: React.FC<Props> = ({ invoices, stores, onOpenPa
                 <p className="text-2xl font-bold text-slate-800">{formatCurrency(statementData.totalDebit)}</p>
             </div>
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                <p className="text-xs font-bold text-slate-500 uppercase mb-2">Total Paid (Credits)</p>
+                <p className="text-xs font-bold text-slate-500 uppercase mb-2">Total Paid/Credited</p>
                 <p className="text-2xl font-bold text-emerald-600">{formatCurrency(statementData.totalCredit)}</p>
             </div>
             <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100 shadow-sm">
@@ -249,7 +256,14 @@ export const AccountsReceivable: React.FC<Props> = ({ invoices, stores, onOpenPa
                                 {item.brand}
                               </span>
                            </td>
-                           <td className="px-6 py-3">{item.description}</td>
+                           <td className="px-6 py-3">
+                              <div className="flex items-center gap-2">
+                                 {item.type === 'Credit Note' && <CornerDownRight size={12} className="text-red-500" />}
+                                 <span className={item.type === 'Credit Note' ? 'text-red-600 font-medium' : ''}>
+                                    {item.description}
+                                 </span>
+                              </div>
+                           </td>
                            <td className="px-6 py-3 text-xs font-mono text-slate-500">{item.ref}</td>
                            <td className="px-6 py-3 text-right font-medium text-slate-800">
                               {item.debit > 0 ? formatCurrency(item.debit) : '-'}
@@ -442,7 +456,7 @@ export const AccountsReceivable: React.FC<Props> = ({ invoices, stores, onOpenPa
                        onClick={() => onOpenPaymentModal(row.store)}
                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-bold transition-colors"
                     >
-                       <CreditCard size={12} /> Pay
+                       <DollarSign size={12} /> Pay
                     </button>
                   </td>
                 </tr>

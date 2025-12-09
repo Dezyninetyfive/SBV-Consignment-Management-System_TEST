@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { SaleRecord, PlanningConfig, InventoryItem, StockMovement, Product } from '../types';
 import { formatCurrency } from '../utils/dataUtils';

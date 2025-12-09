@@ -1,18 +1,19 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { StoreProfile } from '../types';
 import { SAMPLE_BRANDS } from '../constants';
 
 interface Props {
+  isOpen: boolean;
   store: StoreProfile | null;
   onClose: () => void;
   onSave: (s: StoreProfile) => void;
 }
 
-export const StoreModal: React.FC<Props> = ({ store, onClose, onSave }) => {
-  const [formData, setFormData] = useState<StoreProfile>(store || {
-    id: `new-${Date.now()}`,
+export const StoreModal: React.FC<Props> = ({ isOpen, store, onClose, onSave }) => {
+  const [formData, setFormData] = useState<StoreProfile>({
+    id: '',
     name: '',
     group: '',
     address: '',
@@ -25,6 +26,32 @@ export const StoreModal: React.FC<Props> = ({ store, onClose, onSave }) => {
     creditTerm: 30,
     riskStatus: 'Low'
   });
+
+  // Reset form when modal opens or store changes
+  useEffect(() => {
+    if (isOpen) {
+      if (store) {
+        setFormData(store);
+      } else {
+        setFormData({
+          id: `new-${Date.now()}`,
+          name: '',
+          group: '',
+          address: '',
+          city: '',
+          state: '',
+          region: 'Central',
+          postalCode: '',
+          carriedBrands: [],
+          margins: {},
+          creditTerm: 30,
+          riskStatus: 'Low'
+        });
+      }
+    }
+  }, [isOpen, store]);
+
+  if (!isOpen) return null;
 
   const toggleBrand = (brand: string) => {
     const isSelected = formData.carriedBrands.includes(brand);

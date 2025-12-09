@@ -1,14 +1,15 @@
 
 import React, { useState, useMemo } from 'react';
 import { StockMovement } from '../types';
-import { Search, Filter, ArrowUpRight, ArrowDownLeft, PlusCircle } from 'lucide-react';
+import { Search, Filter, ArrowUpRight, ArrowDownLeft, PlusCircle, Printer, FileText, CreditCard } from 'lucide-react';
 
 interface Props {
   movements: StockMovement[];
   onAddTransaction?: () => void;
+  onPrintDO?: (reference: string) => void;
 }
 
-export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction }) => {
+export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction, onPrintDO }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
 
@@ -17,7 +18,8 @@ export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction 
       const matchSearch = 
          m.storeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
          m.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         m.sku.toLowerCase().includes(searchTerm.toLowerCase());
+         m.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         (m.reference && m.reference.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const matchType = filterType === 'All' || m.type === filterType;
 
@@ -35,7 +37,7 @@ export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction 
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input 
                    type="text"
-                   placeholder="Search store, product, SKU..."
+                   placeholder="Search store, product, ref..."
                    value={searchTerm}
                    onChange={(e) => setSearchTerm(e.target.value)}
                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
@@ -81,6 +83,7 @@ export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction 
                       <th className="px-6 py-4">Product Details</th>
                       <th className="px-6 py-4 text-right">Quantity</th>
                       <th className="px-6 py-4 text-right">Reference</th>
+                      <th className="px-6 py-4 text-center">Actions / Links</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -114,11 +117,44 @@ export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction 
                          <td className="px-6 py-4 text-right font-mono text-xs text-slate-500">
                             {m.reference || '-'}
                          </td>
+                         <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                               {m.linkedSaleId && (
+                                  <div className="group relative">
+                                     <div className="p-1.5 text-indigo-600 bg-indigo-50 rounded-full cursor-help">
+                                        <FileText size={14} />
+                                     </div>
+                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                                        Linked Sales Record
+                                     </div>
+                                  </div>
+                               )}
+                               {m.linkedInvoiceId && (
+                                  <div className="group relative">
+                                     <div className={`p-1.5 rounded-full cursor-help ${m.type === 'Return' ? 'text-red-600 bg-red-50' : 'text-emerald-600 bg-emerald-50'}`}>
+                                        <CreditCard size={14} />
+                                     </div>
+                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                                        {m.type === 'Return' ? 'Linked Credit Note' : 'Linked Invoice'}
+                                     </div>
+                                  </div>
+                               )}
+                               {onPrintDO && m.reference && (m.type === 'Transfer Out' || m.type === 'Transfer In' || m.type === 'Restock') && (
+                                 <button 
+                                   onClick={() => onPrintDO(m.reference!)}
+                                   className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors"
+                                   title="Print Delivery Order / Note"
+                                 >
+                                   <Printer size={16} />
+                                 </button>
+                               )}
+                            </div>
+                         </td>
                       </tr>
                    ))}
                    {filteredMovements.length === 0 && (
                       <tr>
-                         <td colSpan={6} className="p-8 text-center text-slate-400">No stock movements found.</td>
+                         <td colSpan={7} className="p-8 text-center text-slate-400">No stock movements found.</td>
                       </tr>
                    )}
                 </tbody>

@@ -129,7 +129,7 @@ export const ChartsSection: React.FC<Props> = ({ history, forecast }) => {
           </div>
         </div>
         
-        <div className="h-[400px] w-full">
+        <div className="h-[400px] w-full min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={combinedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
@@ -173,7 +173,7 @@ export const ChartsSection: React.FC<Props> = ({ history, forecast }) => {
       {forecast.length > 0 && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
            <h3 className="text-lg font-bold text-slate-800 mb-6">Next Year Monthly Distribution ({segmentBy === 'brand' ? 'Brand' : 'Store'})</h3>
-           <div className="h-[350px] w-full">
+           <div className="h-[350px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={forecastAgg} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />

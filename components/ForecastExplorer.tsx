@@ -172,7 +172,7 @@ export const ForecastExplorer: React.FC<Props> = ({ history, forecast, adjustmen
       {/* Visualization */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart */}
-        <div className="lg:col-span-2 h-[400px] border border-slate-100 rounded-xl p-4">
+        <div className="lg:col-span-2 h-[400px] border border-slate-100 rounded-xl p-4 min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />

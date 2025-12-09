@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
@@ -42,11 +41,9 @@ import { InventoryView } from './components/InventoryView';
 import { DataManagement } from './components/DataManagement';
 import { AccountsReceivable } from './components/AccountsReceivable';
 import { AIChatAssistant } from './components/AIChatAssistant';
-import { SalesAnalysis } from './components/SalesAnalysis';
 import { generateForecast } from './services/geminiService';
 import { PaymentModal } from './components/PaymentModal';
 import { ImportModal } from './components/ImportModal';
-import { SystemHealth } from './components/SystemHealth';
 
 export default function App() {
   // --- Data State ---
@@ -131,7 +128,13 @@ export default function App() {
   };
 
   const handleRecordPayment = (invoiceIds: string[], amount: number, method: string, ref: string) => {
-    // Update invoices
+    setInvoices(prev => prev.map(inv => {
+      if (invoiceIds.includes(inv.id)) {
+        return inv; 
+      }
+      return inv;
+    }));
+    
     let remainingPay = amount;
     const newInvoices = invoices.map(inv => {
       if (invoiceIds.includes(inv.id) && remainingPay > 0 && inv.status !== 'Paid') {
@@ -168,80 +171,6 @@ export default function App() {
      const product = products.find(p => p.id === data.productId);
      const store = stores.find(s => s.id === data.storeId);
      
-     // Determine sign based on type
-     let qty = data.quantity;
-     if (['Sale', 'Transfer Out'].includes(data.type)) {
-        qty = -Math.abs(data.quantity);
-     } else if (['Restock', 'Transfer In', 'Return'].includes(data.type)) {
-        qty = Math.abs(data.quantity);
-     }
-     // Adjustment can be + or -
-
-     // Financial Linking Logic
-     let linkedSaleId: string | undefined;
-     let linkedInvoiceId: string | undefined;
-
-     // A. If Sale -> Generate Sales Record & Invoice
-     if (data.type === 'Sale') {
-        const saleAmount = (product?.price || 0) * Math.abs(qty);
-        const newSale: SaleRecord = {
-           id: `sale-${Date.now()}`,
-           date: data.date,
-           brand: product?.brand || 'Unknown',
-           counter: store?.name || 'Unknown',
-           amount: saleAmount
-        };
-        setHistory(prev => [...prev, newSale]);
-        linkedSaleId = newSale.id;
-
-        // Auto-generate Invoice
-        const margin = store?.margins?.[newSale.brand] || 25;
-        const netAmount = saleAmount * (1 - margin / 100);
-        const dueDate = new Date(data.date);
-        dueDate.setDate(dueDate.getDate() + (store?.creditTerm || 30));
-
-        const newInvoice: Invoice = {
-           id: `inv-auto-${Date.now()}`,
-           type: 'Invoice',
-           storeId: data.storeId,
-           storeName: store?.name || 'Unknown',
-           brand: newSale.brand,
-           amount: netAmount,
-           paidAmount: 0,
-           issueDate: data.date,
-           dueDate: dueDate.toISOString().split('T')[0],
-           status: 'Unpaid',
-           payments: [],
-           linkedReference: data.reference
-        };
-        setInvoices(prev => [...prev, newInvoice]);
-        linkedInvoiceId = newInvoice.id;
-     }
-
-     // B. If Return -> Generate Credit Note
-     if (data.type === 'Return') {
-        const returnAmount = (product?.price || 0) * Math.abs(qty);
-        const margin = store?.margins?.[product?.brand || ''] || 25;
-        const netCredit = returnAmount * (1 - margin / 100);
-
-        const creditNote: Invoice = {
-           id: `cn-${Date.now()}`,
-           type: 'Credit Note',
-           storeId: data.storeId,
-           storeName: store?.name || 'Unknown',
-           brand: product?.brand || 'Unknown',
-           amount: -netCredit, // Negative for credit note
-           paidAmount: 0,
-           issueDate: data.date,
-           dueDate: data.date, // Effective immediately
-           status: 'Unpaid',
-           payments: [],
-           linkedReference: data.reference
-        };
-        setInvoices(prev => [...prev, creditNote]);
-        linkedInvoiceId = creditNote.id;
-     }
-
      const newMove: StockMovement = {
         id: `mov-${Date.now()}`,
         date: data.date,
@@ -252,11 +181,14 @@ export default function App() {
         productName: product?.name || 'Unknown',
         sku: product?.sku || 'Unknown',
         variant: data.variant,
-        quantity: qty,
-        reference: data.reference,
-        linkedSaleId,
-        linkedInvoiceId
+        quantity: data.quantity, // Should be signed correctly by caller or here
+        reference: data.reference
      };
+     
+     // Adjust sign based on type if not already done
+     if (['Sale', 'Transfer Out'].includes(data.type) && newMove.quantity > 0) {
+        newMove.quantity = -newMove.quantity;
+     }
 
      setMovements(prev => [newMove, ...prev]);
 
@@ -264,9 +196,9 @@ export default function App() {
      setInventory(prev => {
         const existing = prev.find(i => i.storeId === data.storeId && i.productId === data.productId);
         if (existing) {
-           const newQty = existing.quantity + qty;
+           const newQty = existing.quantity + newMove.quantity;
            const newVariants = { ...existing.variantQuantities };
-           newVariants[data.variant] = (newVariants[data.variant] || 0) + qty;
+           newVariants[data.variant] = (newVariants[data.variant] || 0) + newMove.quantity;
            
            return prev.map(i => i === existing ? { ...i, quantity: newQty, variantQuantities: newVariants } : i);
         } else {
@@ -279,22 +211,11 @@ export default function App() {
               productName: product?.name || 'Unknown',
               sku: product?.sku || 'Unknown',
               brand: product?.brand || 'Unknown',
-              quantity: qty,
-              variantQuantities: { [data.variant]: qty }
+              quantity: newMove.quantity,
+              variantQuantities: { [data.variant]: newMove.quantity }
            }];
         }
      });
-  };
-
-  const handleImportStockMovements = (data: any[]) => {
-     // This would need to map CSV data to StockMovement and apply updates
-     // Simplified for now
-     console.log("Importing movements...", data);
-  };
-
-  const handleNavigateToStoreDetail = (storeName: string) => {
-     setDrillDownStore(storeName);
-     setActiveTab('data');
   };
 
   // --- Render ---
@@ -304,7 +225,7 @@ export default function App() {
       <div className="flex items-center justify-center h-screen bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">Initializing Consignment Management System...</p>
+          <p className="text-slate-500 font-medium">Initializing SalesCast Engine...</p>
         </div>
       </div>
     );
@@ -321,7 +242,7 @@ export default function App() {
               inventory={inventory}
               movements={movements}
               products={products}
-              onStoreClick={handleNavigateToStoreDetail}
+              onStoreClick={(name) => { setDrillDownStore(name); setActiveTab('data'); }}
             />
             <MetricsGrid history={history} forecast={forecasts} />
             <ChartsSection history={history} forecast={forecasts} />
@@ -333,7 +254,7 @@ export default function App() {
               <SalesIntelligence 
                 history={history} 
                 stores={stores} 
-                onStoreClick={handleNavigateToStoreDetail}
+                onStoreClick={(name) => { setDrillDownStore(name); setActiveTab('data'); }}
               />
             </div>
           </div>
@@ -393,24 +314,6 @@ export default function App() {
             onImportClick={() => { setImportType('invoices'); setIsImportModalOpen(true); }}
           />
         );
-      case 'analysis':
-         return (
-            <SalesAnalysis 
-               history={history}
-               planningData={planningConfig}
-               stores={stores}
-            />
-         );
-      case 'health':
-         return (
-            <SystemHealth 
-               stores={stores}
-               products={products}
-               inventory={inventory}
-               history={history}
-               invoices={invoices}
-            />
-         );
       case 'assistant':
         return (
           <div className="max-w-4xl mx-auto">
@@ -464,18 +367,12 @@ export default function App() {
               { id: 'planning', label: 'Planning & Budget', icon: TrendingUp },
               { id: 'inventory', label: 'Inventory & Stock', icon: Package },
               { id: 'ar', label: 'Accounts Receivable', icon: DollarSign },
-              { id: 'analysis', label: 'Sales Analysis', icon: TrendingUp },
               { id: 'data', label: 'Data Management', icon: Database },
-              { id: 'health', label: 'System Health', icon: Package },
               { id: 'assistant', label: 'AI Assistant', icon: MessageSquare },
             ].map(item => (
               <button
                 key={item.id}
-                onClick={() => { 
-                   setActiveTab(item.id); 
-                   if(item.id === 'data') setDrillDownStore(null); // Clear drill down on explicit click
-                   setIsSidebarOpen(false); 
-                }}
+                onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                    activeTab === item.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                 }`}
@@ -533,13 +430,17 @@ export default function App() {
          onImportStores={(data) => setStores(prev => [...prev, ...data])}
          onImportProducts={(data) => setProducts(prev => [...prev, ...data])}
          onImportInventory={(data) => {
-             // Complex merge logic simplified
+             // Complex merge logic simplified for demo
              console.log("Imported Inventory", data);
          }}
          onImportInvoices={(data) => {
+             // Transform simple import data to full Invoice objects if needed
+             // For now, assume ImportModal handles data shape or we map it here
              console.log("Imported Invoices", data);
          }}
-         onImportStockMovements={handleImportStockMovements}
+         onImportStockMovements={(data) => {
+             console.log("Imported Movements", data);
+         }}
       />
     </div>
   );

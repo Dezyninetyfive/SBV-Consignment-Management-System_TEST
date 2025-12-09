@@ -25,10 +25,19 @@ export const AIChatAssistant: React.FC<Props> = ({ contextData }) => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Use ref on the container instead of a dummy element to prevent window scrolling
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+        const { scrollHeight, clientHeight } = scrollContainerRef.current;
+        // Scroll the internal container, not the window
+        scrollContainerRef.current.scrollTo({
+            top: scrollHeight - clientHeight,
+            behavior: 'smooth'
+        });
+    }
   };
 
   useEffect(() => {
@@ -85,7 +94,10 @@ export const AIChatAssistant: React.FC<Props> = ({ contextData }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50"
+      >
         {messages.map((msg) => (
           <div 
             key={msg.id} 
@@ -120,7 +132,6 @@ export const AIChatAssistant: React.FC<Props> = ({ contextData }) => {
             Thinking...
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       <form onSubmit={handleSend} className="p-4 bg-white border-t border-slate-100 flex gap-2">

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { InventoryItem, Product, StoreProfile, StockMovement, MovementType } from '../types';
 import { ProductAnalytics } from './ProductAnalytics';

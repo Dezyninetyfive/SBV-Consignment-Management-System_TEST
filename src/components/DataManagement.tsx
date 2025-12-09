@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { SaleRecord, StockMovement, StoreProfile, Product, InventoryItem, MovementType } from '../types';
 import { 
@@ -48,8 +47,6 @@ export const DataManagement: React.FC<Props> = ({
   const [isAddRecordModalOpen, setIsAddRecordModalOpen] = useState(false);
   const [recordToEdit, setRecordToEdit] = useState<SaleRecord | null>(null);
 
-  // Auto-switch to detailed view if targetStore provided (omitted for brevity in this fix, can rely on StoreNetwork search/filter or dedicated detail view later)
-  
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

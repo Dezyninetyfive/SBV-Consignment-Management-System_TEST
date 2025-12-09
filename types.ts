@@ -87,6 +87,8 @@ export interface StockMovement {
   variant: string; // "Standard" or "Red-S"
   quantity: number; // Positive (In) or Negative (Out)
   reference?: string;
+  linkedInvoiceId?: string; // Link to credit note if return or invoice if sale
+  linkedSaleId?: string;    // Link to Sales Record if sale
 }
 
 export interface PaymentRecord {
@@ -99,15 +101,17 @@ export interface PaymentRecord {
 
 export interface Invoice {
   id: string;
+  type?: 'Invoice' | 'Credit Note'; // Support for Returns
   storeId: string;
   storeName: string;
   brand: string; // NEW: Split AR by brand
-  amount: number;
+  amount: number; // Negative for Credit Notes
   paidAmount: number; 
   issueDate: string; // YYYY-MM-DD
   dueDate: string; // YYYY-MM-DD
   status: 'Paid' | 'Unpaid' | 'Overdue' | 'Partial';
   payments: PaymentRecord[]; 
+  linkedReference?: string; // Link to Stock Movement Ref
 }
 
 export interface StockTransfer {
