@@ -48,6 +48,17 @@ export interface PlanningConfig {
 
 // --- NEW ENTITIES FOR ERP ---
 
+export interface Supplier {
+  id: string;
+  name: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  paymentTerms: number; // days
+  leadTime: number; // days
+  address: string;
+}
+
 export interface Product {
   id: string;
   sku: string;
@@ -59,6 +70,22 @@ export interface Product {
   price: number;
   imageUrl: string;
   variants: string[]; // e.g. ["S", "M", "L"] or ["Red", "Blue"]
+  // New Extended Attributes
+  supplierId?: string;
+  supplierName?: string;
+  attributes?: {
+    fabric?: string;
+    neckline?: string;
+    fit?: string;
+    sleeve?: string;
+    gender?: 'Men' | 'Women' | 'Kids' | 'Unisex';
+    season?: string;
+  };
+  inventoryPlanning?: {
+    reorderPoint: number;
+    safetyStock: number;
+    markdownPrice?: number;
+  };
 }
 
 export interface InventoryItem {
@@ -122,4 +149,17 @@ export interface StockTransfer {
   productId: string;
   quantity: number;
   status: 'Completed' | 'Pending';
+}
+
+export interface StockPlanning {
+  productId: string;
+  sku: string;
+  name: string;
+  brand: string;
+  totalStock: number;
+  avgMonthlySales: number;
+  safetyStock: number;
+  reorderPoint: number;
+  suggestedOrder: number;
+  status: 'OK' | 'Reorder' | 'Overstock' | 'Critical';
 }

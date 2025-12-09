@@ -128,39 +128,33 @@ export default function App() {
   };
 
   const handleRecordPayment = (invoiceIds: string[], amount: number, method: string, ref: string) => {
-    setInvoices(prev => prev.map(inv => {
-      if (invoiceIds.includes(inv.id)) {
-        return inv; 
-      }
-      return inv;
-    }));
-    
-    let remainingPay = amount;
-    const newInvoices = invoices.map(inv => {
-      if (invoiceIds.includes(inv.id) && remainingPay > 0 && inv.status !== 'Paid') {
-        const due = inv.amount - (inv.paidAmount || 0);
-        const toPay = Math.min(due, remainingPay);
-        remainingPay -= toPay;
-        
-        const newPaid = (inv.paidAmount || 0) + toPay;
-        const status = newPaid >= inv.amount ? 'Paid' : 'Partial';
-        
-        return {
-          ...inv,
-          paidAmount: newPaid,
-          status,
-          payments: [...(inv.payments || []), {
-            id: `pay-${Date.now()}-${Math.random()}`,
-            date: new Date().toISOString().split('T')[0],
-            amount: toPay,
-            method,
-            reference: ref
-          }]
-        };
-      }
-      return inv;
+    setInvoices(prevInvoices => {
+      let remainingPay = amount;
+      return prevInvoices.map(inv => {
+        if (invoiceIds.includes(inv.id) && remainingPay > 0 && inv.status !== 'Paid') {
+          const due = inv.amount - (inv.paidAmount || 0);
+          const toPay = Math.min(due, remainingPay);
+          remainingPay -= toPay;
+          
+          const newPaid = (inv.paidAmount || 0) + toPay;
+          const status: Invoice['status'] = newPaid >= inv.amount ? 'Paid' : 'Partial';
+          
+          return {
+            ...inv,
+            paidAmount: newPaid,
+            status,
+            payments: [...(inv.payments || []), {
+              id: `pay-${Date.now()}-${Math.random()}`,
+              date: new Date().toISOString().split('T')[0],
+              amount: toPay,
+              method,
+              reference: ref
+            }]
+          };
+        }
+        return inv;
+      });
     });
-    setInvoices(newInvoices);
   };
 
   const handleRecordStockTransaction = (data: { 
@@ -297,6 +291,7 @@ export default function App() {
                stores={stores}
                products={products}
                inventory={inventory}
+               suppliers={[]} // Pass empty or proper suppliers if available
                targetStore={drillDownStore}
                onImportClick={(t) => { setImportType(t); setIsImportModalOpen(true); }}
                onEditRecord={() => {}} 

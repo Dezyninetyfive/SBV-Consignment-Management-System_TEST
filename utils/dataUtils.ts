@@ -1,5 +1,5 @@
 
-import { SaleRecord, ForecastRecord, AggregatedData, StoreProfile, Product, InventoryItem, Invoice, StockMovement } from '../types';
+import { SaleRecord, ForecastRecord, AggregatedData, StoreProfile, Product, InventoryItem, Invoice, StockMovement, Supplier } from '../types';
 import { SAMPLE_BRANDS, PRODUCT_CATEGORIES, CREDIT_TERMS } from '../constants';
 
 const RETAIL_GROUPS = ['Central Group', 'The Mall Group', 'Aeon', 'Robinson', 'Siam Piwat', 'Independent'];
@@ -108,13 +108,31 @@ export const generateMockHistory = (stores: StoreProfile[]): SaleRecord[] => {
   return records;
 };
 
-// NEW: Generate Product Catalog
-export const generateMockProducts = (): Product[] => {
+// NEW: Generate Suppliers
+export const generateMockSuppliers = (): Supplier[] => {
+  const names = ['FabriCo Ltd', 'Textile Giants', 'Global Sourcing Partners', 'Elite Garments', 'Local Threads Inc', 'Vogue Manufacturing'];
+  return names.map((name, i) => ({
+    id: `sup-${i + 1}`,
+    name,
+    contactPerson: `Manager ${String.fromCharCode(65 + i)}`,
+    email: `contact@${name.replace(/ /g, '').toLowerCase()}.com`,
+    phone: `+60 3-${Math.floor(Math.random() * 8999) + 1000}`,
+    paymentTerms: [30, 45, 60][Math.floor(Math.random() * 3)],
+    leadTime: [7, 14, 21, 30][Math.floor(Math.random() * 4)],
+    address: `Industrial Park Zone ${i + 1}, Kuala Lumpur`
+  }));
+};
+
+// NEW: Generate Product Catalog with Attributes
+export const generateMockProducts = (suppliers: Supplier[] = []): Product[] => {
   const products: Product[] = [];
   let idCounter = 1;
 
   const COLORS = ['Red', 'Blue', 'Black', 'White', 'Beige', 'Navy', 'Olive'];
   const SIZES = ['S', 'M', 'L', 'XL'];
+  const FABRICS = ['Cotton', 'Polyester', 'Linen', 'Denim', 'Silk Blend'];
+  const NECKLINES = ['Crew', 'V-Neck', 'Collared', 'Boat'];
+  const FITS = ['Slim', 'Regular', 'Oversized'];
 
   SAMPLE_BRANDS.forEach(brand => {
     const categories = PRODUCT_CATEGORIES[brand as keyof typeof PRODUCT_CATEGORIES] || [];
@@ -127,6 +145,8 @@ export const generateMockProducts = (): Product[] => {
         // Generate Variants (Color + Size combinations)
         const color = COLORS[Math.floor(Math.random() * COLORS.length)];
         const variants = SIZES.map(s => `${color}-${s}`);
+        
+        const supplier = suppliers.length > 0 ? suppliers[Math.floor(Math.random() * suppliers.length)] : undefined;
 
         products.push({
           id: `p-${idCounter}`,
@@ -138,7 +158,20 @@ export const generateMockProducts = (): Product[] => {
           cost: Math.floor(cost * 100) / 100,
           price: Math.floor(price * 100) / 100,
           imageUrl: `https://placehold.co/400x500/f1f5f9/475569?text=${brand}+${cat}+${i}`,
-          variants: variants
+          variants: variants,
+          supplierId: supplier?.id,
+          supplierName: supplier?.name,
+          attributes: {
+            fabric: FABRICS[Math.floor(Math.random() * FABRICS.length)],
+            neckline: NECKLINES[Math.floor(Math.random() * NECKLINES.length)],
+            fit: FITS[Math.floor(Math.random() * FITS.length)],
+            gender: brand === 'Domino' ? 'Men' : brand === 'OTTO' ? 'Women' : 'Kids',
+            season: Math.random() > 0.5 ? 'SS24' : 'FW24'
+          },
+          inventoryPlanning: {
+            reorderPoint: Math.floor(Math.random() * 20) + 5,
+            safetyStock: Math.floor(Math.random() * 10) + 2
+          }
         });
         idCounter++;
       }
@@ -243,8 +276,8 @@ export const generateMockStockMovements = (inventory: InventoryItem[], products:
     // 3. Occasional Transfer Out (5% chance)
     if(Math.random() > 0.95) {
        movements.push({
-         id: `mov-trans-${inv.id}`,
-         date: new Date(today.getTime() - (2 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+         id: `mov-transfer-${inv.id}`,
+         date: new Date(today.getTime() - (5 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
          type: 'Transfer Out',
          storeId: inv.storeId,
          storeName: inv.storeName,
@@ -252,8 +285,8 @@ export const generateMockStockMovements = (inventory: InventoryItem[], products:
          productName: inv.productName,
          sku: inv.sku,
          variant: 'Standard',
-         quantity: -Math.floor(Math.random() * 5) - 1,
-         reference: 'TR-AUTO-BAL'
+         quantity: -5,
+         reference: 'TR-AUTO'
        });
     }
   });
@@ -261,96 +294,102 @@ export const generateMockStockMovements = (inventory: InventoryItem[], products:
   return movements.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 };
 
-// NEW: Generate Invoices (AR)
+// Generate AR Invoices from Stores
 export const generateMockInvoices = (stores: StoreProfile[]): Invoice[] => {
   const invoices: Invoice[] = [];
   const today = new Date();
 
   stores.forEach(store => {
-    // Generate invoices for each brand the store carries
-    store.carriedBrands.forEach(brand => {
-       // 30% chance to have invoice for this brand
-       if (Math.random() > 0.7) {
-          const count = Math.floor(Math.random() * 2) + 1;
-          for (let i = 0; i < count; i++) {
-            const daysAgo = Math.floor(Math.random() * 100); 
-            
-            const issueDate = new Date(today);
-            issueDate.setDate(issueDate.getDate() - daysAgo);
-            
-            const dueDate = new Date(issueDate);
-            dueDate.setDate(dueDate.getDate() + store.creditTerm);
+    // Generate 1-3 open invoices per store
+    const count = Math.floor(Math.random() * 3) + 1;
+    
+    for (let i = 0; i < count; i++) {
+      const daysAgo = Math.floor(Math.random() * 60) + 10;
+      const issueDate = new Date(today.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
+      
+      const dueDate = new Date(issueDate);
+      dueDate.setDate(dueDate.getDate() + store.creditTerm);
+      
+      const brand = store.carriedBrands[i % store.carriedBrands.length];
+      const amount = 5000 + Math.floor(Math.random() * 15000);
+      
+      // Random payment status
+      const paid = Math.random() > 0.5 ? 0 : amount * (Math.random() * 0.8);
+      const status = paid >= amount ? 'Paid' : paid > 0 ? 'Partial' : (dueDate < today ? 'Overdue' : 'Unpaid');
 
-            let status: 'Paid' | 'Unpaid' | 'Overdue' | 'Partial' = 'Unpaid';
-            if (dueDate < today) status = 'Overdue';
-
-            invoices.push({
-              id: `inv-${store.id}-${brand}-${i}`,
-              storeId: store.id,
-              storeName: store.name,
-              brand: brand,
-              amount: Math.floor((Math.random() * 10000 + 2000) * 100) / 100,
-              paidAmount: 0,
-              issueDate: issueDate.toISOString().split('T')[0],
-              dueDate: dueDate.toISOString().split('T')[0],
-              status,
-              payments: []
-            });
-          }
-       }
-    });
+      if (status !== 'Paid') {
+        invoices.push({
+          id: `inv-${store.id}-${i}`,
+          storeId: store.id,
+          storeName: store.name,
+          brand,
+          amount,
+          paidAmount: paid,
+          issueDate: issueDate.toISOString().split('T')[0],
+          dueDate: dueDate.toISOString().split('T')[0],
+          status,
+          payments: paid > 0 ? [{
+             id: `pay-${store.id}-${i}`,
+             date: new Date(issueDate.getTime() + (10 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+             amount: paid,
+             method: 'Bank Transfer',
+             reference: 'TRX-999'
+          }] : []
+        });
+      }
+    }
   });
   return invoices;
 };
 
-export const aggregateByTime = (
-  data: (SaleRecord | ForecastRecord)[], 
-  key: 'brand' | 'counter' | 'total'
-): AggregatedData[] => {
-  const grouped: Record<string, AggregatedData> = {};
+// Basic aggregation
+export const aggregateByTime = (data: (SaleRecord | ForecastRecord)[], segmentBy: 'brand' | 'counter') => {
+  const agg: Record<string, AggregatedData> = {};
+  
+  data.forEach(d => {
+    let timeKey: string;
+    let amount: number;
+    let segmentKey: string;
 
-  data.forEach(item => {
-    let dateKey = '';
-    let amount = 0;
-    let groupKey = 'Total';
-
-    if ('date' in item) {
-      dateKey = item.date.substring(0, 7); // YYYY-MM
-      amount = item.amount;
+    if ('date' in d) {
+      // SaleRecord
+      timeKey = d.date.substring(0, 7); // YYYY-MM
+      amount = d.amount;
+      segmentKey = segmentBy === 'brand' ? d.brand : d.counter;
     } else {
-      dateKey = item.month;
-      amount = item.forecastAmount;
+      // ForecastRecord
+      timeKey = d.month;
+      amount = d.forecastAmount;
+      segmentKey = segmentBy === 'brand' ? d.brand : d.counter;
     }
 
-    if (key === 'brand') groupKey = item.brand;
-    if (key === 'counter') groupKey = item.counter;
-
-    if (!grouped[dateKey]) {
-      grouped[dateKey] = { name: dateKey };
-    }
-
-    if (!grouped[dateKey][groupKey]) {
-      grouped[dateKey][groupKey] = 0;
-    }
-    
-    (grouped[dateKey][groupKey] as number) += amount;
+    if (!agg[timeKey]) agg[timeKey] = { name: timeKey };
+    agg[timeKey][segmentKey] = ((agg[timeKey][segmentKey] as number) || 0) + amount;
   });
 
-  return Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name));
+  return Object.values(agg).sort((a, b) => a.name.localeCompare(b.name));
 };
 
-export const aggregateSalesByDimension = (
-  history: SaleRecord[],
-  stores: StoreProfile[],
-  dimension: 'region' | 'group' | 'city'
-) => {
-  const storeMap = new Map(stores.map(s => [s.name, s]));
+export const getMonthlyHistory = (history: SaleRecord[], brand: string, counter: string, year: number, month: number) => {
+  return history
+    .filter(r => {
+      const d = new Date(r.date);
+      return d.getFullYear() === year && 
+             d.getMonth() + 1 === month && 
+             (brand === 'All' || r.brand === brand) && 
+             (counter === 'All' || r.counter === counter);
+    })
+    .reduce((sum, r) => sum + r.amount, 0);
+};
+
+export const aggregateSalesByDimension = (history: SaleRecord[], stores: StoreProfile[], dimension: 'region' | 'group') => {
+  const storeMap = new Map<string, StoreProfile>(stores.map(s => [s.name, s] as [string, StoreProfile]));
   const agg: Record<string, number> = {};
 
   history.forEach(r => {
     const store = storeMap.get(r.counter);
     if (store) {
-      const key = store[dimension] || 'Unknown';
+      const key = store[dimension];
       agg[key] = (agg[key] || 0) + r.amount;
     }
   });
@@ -360,53 +399,11 @@ export const aggregateSalesByDimension = (
     .sort((a, b) => b.value - a.value);
 };
 
-export const getMonthlyHistory = (
-  history: SaleRecord[],
-  brand: string,
-  counter: string,
-  year: number,
-  monthIndex: number // 1-12
-): number => {
-  // Finds record matching the criteria
-  const match = history.find(r => {
-    const d = new Date(r.date);
-    return (
-      r.brand === brand &&
-      r.counter === counter &&
-      d.getFullYear() === year &&
-      d.getMonth() + 1 === monthIndex
-    );
-  });
-  return match ? match.amount : 0;
-};
-
-export const formatCurrency = (val: number) => {
+export const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-MY', {
     style: 'currency',
     currency: 'MYR',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(val);
-};
-
-export const calculateCounterShares = (history: SaleRecord[]) => {
-  const brandTotals: Record<string, number> = {};
-  const counterTotals: Record<string, Record<string, number>> = {}; 
-
-  history.forEach(r => {
-    brandTotals[r.brand] = (brandTotals[r.brand] || 0) + r.amount;
-    if (!counterTotals[r.brand]) counterTotals[r.brand] = {};
-    counterTotals[r.brand][r.counter] = (counterTotals[r.brand][r.counter] || 0) + r.amount;
-  });
-
-  const shares: Record<string, Record<string, number>> = {}; 
-  Object.keys(counterTotals).forEach(brand => {
-    shares[brand] = {};
-    const total = brandTotals[brand];
-    Object.keys(counterTotals[brand]).forEach(counter => {
-      shares[brand][counter] = counterTotals[brand][counter] / total;
-    });
-  });
-
-  return shares;
+  }).format(amount);
 };
