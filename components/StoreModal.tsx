@@ -1,0 +1,194 @@
+
+import React, { useState } from 'react';
+import { X, AlertCircle } from 'lucide-react';
+import { StoreProfile } from '../types';
+import { SAMPLE_BRANDS } from '../constants';
+
+interface Props {
+  store: StoreProfile | null;
+  onClose: () => void;
+  onSave: (s: StoreProfile) => void;
+}
+
+export const StoreModal: React.FC<Props> = ({ store, onClose, onSave }) => {
+  const [formData, setFormData] = useState<StoreProfile>(store || {
+    id: `new-${Date.now()}`,
+    name: '',
+    group: '',
+    address: '',
+    city: '',
+    state: '',
+    region: 'Central',
+    postalCode: '',
+    carriedBrands: [],
+    creditTerm: 30,
+    riskStatus: 'Low'
+  });
+
+  const toggleBrand = (brand: string) => {
+    setFormData(prev => ({
+      ...prev,
+      carriedBrands: prev.carriedBrands.includes(brand)
+        ? prev.carriedBrands.filter(b => b !== brand)
+        : [...prev.carriedBrands, brand]
+    }));
+  };
+
+  const handleChange = (field: keyof StoreProfile, value: string | number) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h3 className="text-lg font-bold text-slate-800">
+            {store ? 'Edit Store Details' : 'Add New Store'}
+          </h3>
+          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
+        </div>
+        
+        <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {store && (
+            <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg flex items-start gap-2">
+                <AlertCircle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-700">
+                   <strong>Warning:</strong> Editing the Store ID will automatically update related inventory and invoices to maintain data links.
+                </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+             <div className="col-span-2 space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase">Store ID</label>
+              <input 
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800 font-mono text-sm"
+                value={formData.id}
+                onChange={(e) => handleChange('id', e.target.value)}
+                placeholder="store-unique-id"
+              />
+            </div>
+            <div className="col-span-2 space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase">Store Name</label>
+              <input 
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800"
+                value={formData.name}
+                onChange={(e) => handleChange('name', e.target.value)}
+                placeholder="e.g. Central Plaza Ladprao"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase">Retail Group</label>
+              <input 
+                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800"
+                 value={formData.group}
+                 onChange={(e) => handleChange('group', e.target.value)}
+                 list="group-list"
+              />
+              <datalist id="group-list">
+                 <option value="Central Group" />
+                 <option value="The Mall Group" />
+                 <option value="Aeon" />
+              </datalist>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase">Postal Code</label>
+              <input 
+                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800"
+                 value={formData.postalCode}
+                 onChange={(e) => handleChange('postalCode', e.target.value)}
+              />
+            </div>
+             <div className="col-span-2 space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase">Address</label>
+              <input 
+                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800"
+                 value={formData.address}
+                 onChange={(e) => handleChange('address', e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase">City / Area</label>
+              <input 
+                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800"
+                 value={formData.city}
+                 onChange={(e) => handleChange('city', e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase">Region / State</label>
+              <input 
+                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800"
+                 value={formData.region}
+                 onChange={(e) => handleChange('region', e.target.value)}
+                 list="region-list"
+              />
+               <datalist id="region-list">
+                 <option value="Central" />
+                 <option value="North" />
+                 <option value="North-East" />
+                 <option value="South" />
+                 <option value="East" />
+              </datalist>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase">Credit Term (Days)</label>
+              <input 
+                 type="number"
+                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800"
+                 value={formData.creditTerm}
+                 onChange={(e) => handleChange('creditTerm', parseInt(e.target.value) || 0)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500 uppercase">Risk Status</label>
+              <select 
+                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800 bg-white"
+                 value={formData.riskStatus}
+                 onChange={(e) => handleChange('riskStatus', e.target.value as any)}
+              >
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <label className="text-xs font-semibold text-slate-500 uppercase block mb-2">Carried Brands</label>
+            <div className="flex gap-3">
+              {SAMPLE_BRANDS.map(brand => (
+                <label key={brand} className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all
+                  ${formData.carriedBrands.includes(brand) 
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-medium' 
+                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                  }
+                `}>
+                  <input 
+                    type="checkbox" 
+                    className="hidden" 
+                    checked={formData.carriedBrands.includes(brand)}
+                    onChange={() => toggleBrand(brand)}
+                  />
+                  {brand}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 pt-2 flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+          <button 
+            onClick={() => onSave(formData)} 
+            disabled={!formData.name || formData.carriedBrands.length === 0}
+            className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Save Store
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

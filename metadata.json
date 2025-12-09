@@ -1,0 +1,5 @@
+{
+  "name": "SBV Sales Intelligence Dashboard",
+  "description": "A smart sales forecasting dashboard for consignment counters and brands. Uses historical data to predict future monthly sales trends using Gemini AI.",
+  "requestFramePermissions": []
+}
