@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { SaleRecord, ForecastResponse, StoreProfile, PlanningConfig, Product, InventoryItem, Invoice, PaymentRecord, StockMovement } from './types';
 import { generateMockHistory, generateMockStores, generateMockProducts, generateMockInventory, generateMockInvoices, generateMockStockMovements } from './utils/dataUtils';
@@ -276,14 +275,11 @@ const App: React.FC = () => {
   };
 
   const handleDeleteStore = (storeId: string) => {
-    if (window.confirm("Are you sure you want to delete this store? This will also delete related inventory and invoices.")) {
-       setStores(prev => prev.filter(s => s.id !== storeId));
-       // Cascade delete
-       setInventory(prev => prev.filter(i => i.storeId !== storeId));
-       setInvoices(prev => prev.filter(i => i.storeId !== storeId));
-       // Optional: Delete history? Usually better to keep history but orphan it, 
-       // or user can manually delete. We will keep history for now.
-    }
+    // Confirmation handled in StoreNetwork component via DeleteConfirmationModal
+    setStores(prev => prev.filter(s => s.id !== storeId));
+    // Cascade delete
+    setInventory(prev => prev.filter(i => i.storeId !== storeId));
+    setInvoices(prev => prev.filter(i => i.storeId !== storeId));
   };
 
   const handleBulkUpdateStores = (ids: string[], updates: Partial<StoreProfile>) => {

@@ -1,8 +1,8 @@
-
 import React, { useState, useMemo } from 'react';
 import { StoreProfile } from '../types';
 import { Search, MapPin, Building2, Plus, Edit2, Filter, Upload, CheckSquare, Square, Layers, Tag, Download, Trash2 } from 'lucide-react';
 import { BulkEditModal } from './BulkEditModal';
+import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 
 interface Props {
   stores: StoreProfile[];
@@ -20,6 +20,9 @@ export const StoreNetwork: React.FC<Props> = ({ stores, onEditAction, onAddActio
   // Selection State
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState<'group' | 'brands' | null>(null);
+
+  // Delete Modal State
+  const [storeToDelete, setStoreToDelete] = useState<string | null>(null);
 
   // Derive unique groups for filter
   const groups = ['All', ...Array.from(new Set(stores.map(s => s.group))).sort()];
@@ -74,6 +77,13 @@ export const StoreNetwork: React.FC<Props> = ({ stores, onEditAction, onAddActio
     a.download = `store_network_export_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  const confirmDelete = () => {
+    if (storeToDelete && onDeleteAction) {
+      onDeleteAction(storeToDelete);
+      setStoreToDelete(null);
+    }
   };
 
   return (
@@ -225,7 +235,7 @@ export const StoreNetwork: React.FC<Props> = ({ stores, onEditAction, onAddActio
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end gap-2">
                          <button 
                             onClick={() => onEditAction(store)}
                             className="text-indigo-600 hover:text-indigo-900 font-medium p-1 hover:bg-indigo-50 rounded"
@@ -235,7 +245,7 @@ export const StoreNetwork: React.FC<Props> = ({ stores, onEditAction, onAddActio
                           </button>
                           {onDeleteAction && (
                             <button 
-                              onClick={() => onDeleteAction(store.id)}
+                              onClick={() => setStoreToDelete(store.id)}
                               className="text-red-500 hover:text-red-700 font-medium p-1 hover:bg-red-50 rounded"
                               title="Delete"
                             >
@@ -300,6 +310,16 @@ export const StoreNetwork: React.FC<Props> = ({ stores, onEditAction, onAddActio
         onClose={() => setBulkMode(null)}
         onSave={handleBulkSave}
       />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal 
+        isOpen={!!storeToDelete}
+        onClose={() => setStoreToDelete(null)}
+        onConfirm={confirmDelete}
+        count={1}
+        itemName={storeToDelete || undefined}
+      />
+
     </div>
   );
 };
