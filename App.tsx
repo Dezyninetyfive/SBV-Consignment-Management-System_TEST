@@ -17,10 +17,11 @@ import { InventoryView } from './components/InventoryView';
 import { AccountsReceivable } from './components/AccountsReceivable';
 import { PaymentModal } from './components/PaymentModal';
 import { AIChatAssistant } from './components/AIChatAssistant';
-import { Sparkles, FileText, RefreshCw, AlertCircle, PlusCircle, LayoutDashboard, Building, Database, Zap, Calculator, Target, Package, Clock, Bot } from 'lucide-react';
+import { SalesAnalysis } from './components/SalesAnalysis';
+import { Sparkles, FileText, RefreshCw, AlertCircle, PlusCircle, LayoutDashboard, Building, Database, Zap, Calculator, Target, Package, Clock, Bot, PieChart } from 'lucide-react';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'dashboard' | 'stores' | 'data' | 'planning' | 'inventory' | 'ar' | 'ai'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'stores' | 'data' | 'planning' | 'inventory' | 'ar' | 'ai' | 'analysis'>('dashboard');
   const [stores, setStores] = useState<StoreProfile[]>([]);
   const [history, setHistory] = useState<SaleRecord[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -478,7 +479,7 @@ const App: React.FC = () => {
               <Sparkles className="text-white h-5 w-5" />
             </div>
             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
-              SalesCast ERP
+              Consignment Management System
             </h1>
           </div>
           <div className="flex items-center gap-4">
@@ -502,6 +503,15 @@ const App: React.FC = () => {
             >
               <LayoutDashboard size={16} />
               Dashboard
+            </button>
+            <button 
+              onClick={() => setView('analysis')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                view === 'analysis' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <PieChart size={16} />
+              Analysis
             </button>
             <button 
               onClick={() => setView('planning')}
@@ -559,6 +569,14 @@ const App: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {view === 'analysis' && (
+           <SalesAnalysis 
+             history={history}
+             planningData={planningData}
+             stores={stores}
+           />
+        )}
 
         {view === 'planning' && (
           <PlanningView 

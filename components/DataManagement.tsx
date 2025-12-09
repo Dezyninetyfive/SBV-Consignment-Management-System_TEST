@@ -1,9 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { SaleRecord } from '../types';
-import { Search, Filter, Download, Upload, Trash2, Edit2, Calendar, ChevronLeft, ChevronRight, CheckSquare, Square, ArrowUpDown, ArrowUp, ArrowDown, Store, TrendingUp, DollarSign, PieChart, ArrowLeft } from 'lucide-react';
+import { Search, Filter, Download, Upload, Trash2, Edit2, Calendar, ChevronLeft, ChevronRight, CheckSquare, Square, ArrowUpDown, ArrowUp, ArrowDown, Store, ArrowLeft, DollarSign } from 'lucide-react';
 import { SAMPLE_BRANDS } from '../constants';
 import { formatCurrency } from '../utils/dataUtils';
+import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 
 interface Props {
   history: SaleRecord[];
@@ -36,6 +37,11 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
 
   // Selection State
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Delete Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
+  const [itemToDeleteName, setItemToDeleteName] = useState<string | undefined>(undefined);
 
   // --- Helpers ---
 
@@ -144,11 +150,29 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
     setSelectedIds(newSet);
   };
 
-  const handleBulkDelete = () => {
-     if (window.confirm(`Are you sure you want to delete ${selectedIds.size} records?`)) {
-         if (onBulkDelete) onBulkDelete(Array.from(selectedIds));
-         setSelectedIds(new Set());
+  const triggerBulkDelete = () => {
+     if (selectedIds.size > 0) {
+         setItemsToDelete(Array.from(selectedIds));
+         setItemToDeleteName(undefined);
+         setDeleteModalOpen(true);
      }
+  };
+
+  const triggerSingleDelete = (id: string) => {
+     setItemsToDelete([id]);
+     setItemToDeleteName(id);
+     setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+     if (itemsToDelete.length === 1) {
+         onDeleteRecord(itemsToDelete[0]);
+     } else if (itemsToDelete.length > 1 && onBulkDelete) {
+         onBulkDelete(itemsToDelete);
+     }
+     // Cleanup
+     setSelectedIds(new Set());
+     setItemsToDelete([]);
   };
 
   const handleExport = () => {
@@ -161,12 +185,6 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
     a.download = `sales_data_${viewMode === 'detail' ? selectedStore : 'export'}_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-  };
-
-  const handleDeleteClick = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this record? This action cannot be undone.")) {
-      onDeleteRecord(id);
-    }
   };
 
   // --- Render ---
@@ -312,7 +330,7 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
         <div className="flex gap-2 w-full lg:w-auto justify-end items-center">
           {selectedIds.size > 0 && (
               <button 
-                onClick={handleBulkDelete}
+                onClick={triggerBulkDelete}
                 className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-100 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors shadow-sm mr-2"
               >
                 <Trash2 size={16} />
@@ -426,7 +444,7 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
                         <Edit2 size={16} />
                       </button>
                       <button 
-                         onClick={() => handleDeleteClick(record.id)}
+                         onClick={() => triggerSingleDelete(record.id)}
                          className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors" 
                          title="Delete"
                       >
@@ -472,6 +490,14 @@ export const DataManagement: React.FC<Props> = ({ history, onImportClick, onEdit
           </div>
         )}
       </div>
+
+      <DeleteConfirmationModal 
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        count={itemsToDelete.length}
+        itemName={itemToDeleteName}
+      />
 
     </div>
   );
