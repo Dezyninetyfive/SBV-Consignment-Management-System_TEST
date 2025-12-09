@@ -65,7 +65,6 @@ export const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, stores,
   // --- Logic: Available Products (Moved Up) ---
   const availableProducts = useMemo(() => {
     // Optimization: If modal is closed, return empty to save calc, BUT hooks must run.
-    // However, since this is inside useMemo, it's fine.
     if (!isOpen) return [];
 
     let baseProducts = products;

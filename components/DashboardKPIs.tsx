@@ -37,11 +37,11 @@ export const DashboardKPIs: React.FC<Props> = ({ history, planningData, inventor
     });
 
     // Targets
-    Object.entries(planningData.targets).forEach(([key, amount]: [string, number]) => {
+    Object.entries(planningData.targets).forEach(([key, amount]) => {
       const [dateStr, brand] = key.split('|');
       if (dateStr.startsWith(`${currentYear}-`)) {
-        ytdTargets[brand] = (ytdTargets[brand] || 0) + amount;
-        totalTarget += amount;
+        ytdTargets[brand] = (ytdTargets[brand] || 0) + (amount as number);
+        totalTarget += (amount as number);
       }
     });
 
