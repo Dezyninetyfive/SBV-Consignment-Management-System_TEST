@@ -60,12 +60,12 @@ export const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, stores,
   // Mobile View State
   const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
 
-  // --- Derived Variables (Moved Up) ---
+  // --- Derived Variables ---
   const isTransfer = type === 'Store Transfer';
   const isInbound = ['Restock', 'Transfer In', 'Return'].includes(type as string);
   const activeStoreId = isTransfer ? fromStoreId : storeId;
 
-  // --- Logic: Available Products (Moved Up) ---
+  // --- Logic: Available Products ---
   const availableProducts = useMemo(() => {
     // Optimization: If modal is closed, return empty to save calc, BUT hooks must run.
     if (!isOpen) return [];
@@ -193,10 +193,10 @@ export const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, stores,
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-0 md:p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
       
-      <div className="relative bg-white md:rounded-2xl shadow-2xl w-full max-w-6xl h-full md:h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white rounded-none md:rounded-2xl shadow-2xl w-full max-w-6xl h-[100dvh] md:h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* --- Header Section --- */}
-        <div className="px-4 md:px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-col gap-4 shadow-sm z-20">
+        <div className="px-4 md:px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-col gap-4 shadow-sm z-20 flex-shrink-0">
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -210,12 +210,12 @@ export const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, stores,
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
              <div className="space-y-1">
                 <label className="text-[10px] md:text-xs font-bold text-slate-500 uppercase">Transaction Date</label>
                 <input 
                   type="date"
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-base sm:text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                 />
@@ -224,7 +224,7 @@ export const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, stores,
              <div className="space-y-1">
                 <label className="text-[10px] md:text-xs font-bold text-slate-500 uppercase">Type</label>
                 <select 
-                  className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold outline-none
+                  className={`w-full px-3 py-2 border border-slate-300 rounded-lg text-base sm:text-sm font-bold outline-none appearance-none
                     ${isTransfer ? 'bg-indigo-50 text-indigo-700' : isInbound ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}
                   `}
                   value={type}
@@ -247,7 +247,7 @@ export const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, stores,
                   <div className="space-y-1">
                     <label className="text-[10px] md:text-xs font-bold text-slate-500 uppercase">From Store (Source)</label>
                     <select 
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm outline-none"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-base sm:text-sm outline-none"
                       value={fromStoreId}
                       onChange={(e) => { setFromStoreId(e.target.value); setCartItems([]); }}
                     >
@@ -258,7 +258,7 @@ export const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, stores,
                   <div className="space-y-1">
                     <label className="text-[10px] md:text-xs font-bold text-slate-500 uppercase">To Store (Dest)</label>
                     <select 
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm outline-none"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-base sm:text-sm outline-none"
                       value={toStoreId}
                       onChange={(e) => setToStoreId(e.target.value)}
                     >
@@ -268,10 +268,10 @@ export const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, stores,
                   </div>
                 </>
              ) : (
-                <div className="space-y-1 md:col-span-2">
+                <div className="space-y-1 col-span-2 md:col-span-2">
                    <label className="text-[10px] md:text-xs font-bold text-slate-500 uppercase">Store / Outlet</label>
                    <select 
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm outline-none"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-base sm:text-sm outline-none"
                       value={storeId}
                       onChange={(e) => { setStoreId(e.target.value); setCartItems([]); }}
                    >
@@ -292,7 +292,7 @@ export const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, stores,
               <div className="p-4 border-b border-slate-200 bg-white flex flex-col gap-3">
                  <div className="flex flex-col sm:flex-row gap-2">
                     <select 
-                       className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:outline-none w-full sm:w-auto"
+                       className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-base sm:text-sm font-medium focus:outline-none w-full sm:w-auto"
                        value={selectedBrand}
                        onChange={(e) => setSelectedBrand(e.target.value)}
                     >
@@ -304,7 +304,7 @@ export const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, stores,
                        <input 
                           type="text" 
                           placeholder="Search SKU or Name..."
-                          className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                           value={productSearch}
                           onChange={(e) => setProductSearch(e.target.value)}
                        />
@@ -393,7 +393,7 @@ export const TransactionFormModal: React.FC<Props> = ({ isOpen, onClose, stores,
                  </div>
                  <div className="flex gap-2">
                     <input 
-                       className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm w-32 sm:w-40 focus:outline-none"
+                       className="px-3 py-1.5 border border-slate-200 rounded-lg text-base sm:text-sm w-32 sm:w-40 focus:outline-none"
                        placeholder="Ref Doc #"
                        value={reference}
                        onChange={(e) => setReference(e.target.value)}

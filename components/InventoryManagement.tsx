@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, Product, StoreProfile, StockMovement, MovementType, SaleRecord, Supplier } from '../types';
 import { ProductAnalytics } from './ProductAnalytics';
@@ -186,14 +187,14 @@ export const InventoryManagement: React.FC<Props> = ({
                <input 
                   type="text"
                   placeholder={activeTab === 'master' ? "Search Product SKU/Name..." : "Search Store Name..."}
-                  className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                />
             </div>
             <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 flex-1">
                <select 
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                   value={filterBrand}
                   onChange={(e) => setFilterBrand(e.target.value)}
                >
@@ -201,7 +202,7 @@ export const InventoryManagement: React.FC<Props> = ({
                   {SAMPLE_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
                </select>
                <select 
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
                >
@@ -209,14 +210,14 @@ export const InventoryManagement: React.FC<Props> = ({
                   {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
                </select>
                <select 
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                   value={filterGroup}
                   onChange={(e) => setFilterGroup(e.target.value)}
                >
                   {uniqueGroups.map(g => <option key={g} value={g}>{g === 'All' ? 'All Retail Groups' : g}</option>)}
                </select>
                <select 
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                   value={filterRegion}
                   onChange={(e) => setFilterRegion(e.target.value)}
                >
@@ -248,7 +249,7 @@ export const InventoryManagement: React.FC<Props> = ({
                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                   <span className="text-xs font-semibold text-slate-500 uppercase mr-2 hidden sm:inline">Sort:</span>
                   <select 
-                     className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none cursor-pointer flex-1 sm:flex-none"
+                     className="px-3 py-1.5 border border-slate-200 rounded-lg text-base sm:text-sm bg-white focus:outline-none cursor-pointer flex-1 sm:flex-none"
                      value={sortBy}
                      onChange={(e) => setSortBy(e.target.value as any)}
                   >

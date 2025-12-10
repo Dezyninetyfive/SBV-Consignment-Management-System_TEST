@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, Product, StoreProfile, StockMovement, MovementType } from '../types';
 import { ProductAnalytics } from './ProductAnalytics';
@@ -101,7 +102,7 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
       });
   }, [stores, storeSearch, filterGroup, filterRegion, sortBy, storeStats]);
 
-  // Global Summary Metrics
+  // Global Summary Metrics (Cast to known type for safety)
   const totalValuation = (Object.values(storeStats) as { value: number }[]).reduce((acc, s) => acc + s.value, 0);
   const totalUnits = (Object.values(storeStats) as { qty: number }[]).reduce((acc, s) => acc + s.qty, 0);
 
@@ -134,8 +135,6 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
 
   const openStoreStock = (storeId: string) => {
      const store = stores.find(s => s.id === storeId);
-     // Use Filtered Inventory here too, so modal only shows what matched criteria? 
-     // Usually detailed view shows everything, but let's show filtered for consistency
      const items = filteredInventory.filter(i => i.storeId === storeId && i.quantity > 0);
      if (store) {
         setSelectedStoreStock({ name: store.name, items });
@@ -157,7 +156,7 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
              onClick={() => setIsTransactionModalOpen(true)}
              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm transition-colors whitespace-nowrap"
           >
-             <ArrowRightLeft size={18} /> New Transfer
+             <ArrowRightLeft size={18} /> New Transfer / Adjustment
           </button>
        </div>
 
@@ -170,16 +169,16 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
                 <input 
                    type="text"
                    placeholder="Search store name..."
-                   className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                   className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                    value={storeSearch}
                    onChange={(e) => setStoreSearch(e.target.value)}
                 />
              </div>
 
              {/* Dropdowns */}
-             <div className="flex flex-wrap gap-2 flex-1">
+             <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 flex-1">
                 <select 
-                   className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                   className="px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                    value={filterBrand}
                    onChange={(e) => setFilterBrand(e.target.value)}
                 >
@@ -187,7 +186,7 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
                    {SAMPLE_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
                 <select 
-                   className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                   className="px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                    value={filterCategory}
                    onChange={(e) => setFilterCategory(e.target.value)}
                 >
@@ -195,14 +194,14 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
                    {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <select 
-                   className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                   className="px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                    value={filterGroup}
                    onChange={(e) => setFilterGroup(e.target.value)}
                 >
                    {uniqueGroups.map(g => <option key={g} value={g}>{g === 'All' ? 'All Retail Groups' : g}</option>)}
                 </select>
                 <select 
-                   className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                   className="px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                    value={filterRegion}
                    onChange={(e) => setFilterRegion(e.target.value)}
                 >
@@ -212,28 +211,28 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
           </div>
 
           {/* View Ticker */}
-          <div className="flex flex-wrap items-center justify-between pt-4 border-t border-slate-100 gap-4">
-             <div className="flex gap-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-4 border-t border-slate-100 gap-4">
+             <div className="flex gap-6 w-full sm:w-auto justify-around sm:justify-start">
                 <div className="flex items-center gap-3">
                    <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><Package size={20} /></div>
                    <div>
-                      <p className="text-xs text-slate-500 font-bold uppercase">Total Units (View)</p>
-                      <p className="text-xl font-bold text-slate-800">{totalUnits.toLocaleString()}</p>
+                      <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase">Total Units (View)</p>
+                      <p className="text-lg md:text-xl font-bold text-slate-800">{totalUnits.toLocaleString()}</p>
                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><DollarSign size={20} /></div>
                    <div>
-                      <p className="text-xs text-slate-500 font-bold uppercase">Valuation (Cost)</p>
-                      <p className="text-xl font-bold text-slate-800">{formatCurrency(totalValuation)}</p>
+                      <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase">Valuation (Cost)</p>
+                      <p className="text-lg md:text-xl font-bold text-slate-800">{formatCurrency(totalValuation)}</p>
                    </div>
                 </div>
              </div>
 
-             <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-500 uppercase mr-2">Sort Stores By:</span>
+             <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <span className="text-xs font-semibold text-slate-500 uppercase mr-2 hidden sm:inline">Sort Stores By:</span>
                 <select 
-                   className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none cursor-pointer"
+                   className="px-3 py-1.5 border border-slate-200 rounded-lg text-base sm:text-sm bg-white focus:outline-none cursor-pointer flex-1 sm:flex-none"
                    value={sortBy}
                    onChange={(e) => setSortBy(e.target.value as any)}
                 >
@@ -243,7 +242,7 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
                    <option value="value_low">Lowest Value</option>
                    <option value="name">Store Name (A-Z)</option>
                 </select>
-                <div className="w-px h-6 bg-slate-200 mx-2"></div>
+                <div className="w-px h-6 bg-slate-200 mx-2 hidden sm:block"></div>
                 <div className="flex bg-slate-100 p-1 rounded-lg">
                    <button 
                       onClick={() => setViewMode('grid')}
@@ -364,7 +363,7 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
           onClose={() => setSelectedProduct(null)}
           product={selectedProduct}
           inventory={inventory}
-          onEdit={() => {}} 
+          onEdit={() => {}} // Placeholder
        />
 
        <StoreStockModal 

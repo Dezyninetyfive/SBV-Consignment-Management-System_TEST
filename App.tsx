@@ -130,13 +130,18 @@ export default function App() {
             const due = inv.amount - (inv.paidAmount || 0);
             const paid = (inv.paidAmount || 0) + Math.min(due, amount); 
             const status = paid >= inv.amount ? 'Paid' as const : 'Partial' as const;
-            return { ...inv, paidAmount: paid, status, payments: [...(inv.payments||[]), {id: Date.now().toString(), date: new Date().toISOString().split('T')[0], amount, method, reference: ref}] };
+            return { 
+              ...inv, 
+              paidAmount: paid, 
+              status, 
+              payments: [...(inv.payments || []), {id: Date.now().toString(), date: new Date().toISOString().split('T')[0], amount, method, reference: ref}] 
+            };
         }
         return inv;
     }));
   };
 
-  // --- DELETION LOGIC ---
+  // --- CASCADING DELETE LOGIC ---
   const handleDeleteRecord = (id: string) => {
     // 1. Remove from Sales History
     setHistory(prev => prev.filter(r => r.id !== id));
@@ -165,23 +170,40 @@ export default function App() {
     }
   };
 
+  // --- CASCADING EDIT LOGIC (New) ---
   const handleEditRecord = (record: SaleRecord) => {
-     // If record exists, update
-     if (history.find(r => r.id === record.id)) {
+     // Check if existing
+     const existing = history.find(r => r.id === record.id);
+     
+     if (existing) {
+        // 1. Update History
         setHistory(prev => prev.map(r => r.id === record.id ? record : r));
-        // Note: For full integrity, we should also update the Invoice amount if amount changed.
-        // This is complex because we need to recalculate margin and net amount.
-        // For this demo, we assume Add New, but in a real app, Edit would trigger update logic.
+
+        // 2. Update Linked Invoice (If Amount Changed)
+        if (existing.amount !== record.amount) {
+           const linkedMovement = movements.find(m => m.linkedSaleId === record.id);
+           if (linkedMovement && linkedMovement.linkedInvoiceId) {
+              setInvoices(prev => prev.map(inv => {
+                 if (inv.id === linkedMovement.linkedInvoiceId) {
+                    const store = stores.find(s => s.id === inv.storeId);
+                    // Recalculate Net
+                    const marginPct = store?.margins[record.brand] || 25;
+                    const newNet = record.amount * (1 - (marginPct / 100));
+                    return { ...inv, amount: newNet };
+                 }
+                 return inv;
+              }));
+           }
+        }
      } else {
-        // Else Add New
+        // Add New (Fallback for manual add in Data tab)
         setHistory(prev => [record, ...prev]);
-        // Also trigger invoice creation? Yes, similar to unified engine.
-        // For simplicity in Data Tab, we allow quick add.
-        // Ideally, we use handleRecordStockTransaction for everything to keep it synced.
+        // Ideally we generate an invoice here too, but manual adds in Data tab are distinct from Inventory movements.
+        // For strictness, we should encourage adding via 'Inventory -> Sale' instead.
      }
   };
 
-  // Unified Transaction Engine
+  // --- Unified Transaction Engine ---
   const handleRecordStockTransaction = (data: { date: string, type: MovementType, storeId: string, productId: string, variant: string, quantity: number, reference: string }) => {
      const product = products.find(p => p.id === data.productId);
      const store = stores.find(s => s.id === data.storeId);
@@ -315,7 +337,7 @@ export default function App() {
     }));
   };
 
-  if (loading) return <div className="flex items-center justify-center h-screen bg-slate-50">Loading SalesCast...</div>;
+  if (loading) return <div className="flex items-center justify-center h-screen bg-slate-50">Loading Celestrion...</div>;
 
   const renderContent = () => {
     switch(activeTab) {
@@ -339,6 +361,7 @@ export default function App() {
           </div>
         );
       case 'inventory':
+        // REPLACED InventoryView with InventoryManagement (The Command Center)
         return (
           <InventoryManagement 
              inventory={inventory}
@@ -386,7 +409,7 @@ export default function App() {
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900">
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0`}>
          <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-3"><TrendingUp className="text-indigo-500" size={24} /><span className="font-bold text-lg">SalesCast</span></div>
+            <div className="flex items-center gap-3"><TrendingUp className="text-indigo-500" size={24} /><span className="font-bold text-lg tracking-tight">Celestrion</span></div>
             <button className="lg:hidden text-slate-400" onClick={() => setIsSidebarOpen(false)}><X size={20} /></button>
          </div>
          <nav className="p-4 space-y-2">
@@ -400,7 +423,7 @@ export default function App() {
               { id: 'health', label: 'System Health', icon: ShieldCheck },
               { id: 'assistant', label: 'AI Assistant', icon: MessageSquare },
             ].map(item => (
-              <button key={item.id} onClick={() => { setActiveTab(item.id); if(item.id==='data') setDrillDownStore(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
+              <button key={item.id} onClick={() => { setActiveTab(item.id); if(item.id==='data') setDrillDownStore(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === item.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
                  <item.icon size={20} /><span className="font-medium">{item.label}</span>
               </button>
             ))}
@@ -409,7 +432,7 @@ export default function App() {
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
          <div className="lg:hidden bg-white border-b border-slate-200 p-4 flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(true)} className="text-slate-600"><Menu size={24} /></button>
-            <span className="font-bold text-slate-800">SalesCast</span>
+            <span className="font-bold text-slate-800">Celestrion</span>
          </div>
          <div className="flex-1 overflow-auto p-4 md:p-8">
             <div className="max-w-7xl mx-auto">{renderContent()}</div>
