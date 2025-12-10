@@ -102,8 +102,8 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
   }, [stores, storeSearch, filterGroup, filterRegion, sortBy, storeStats]);
 
   // Global Summary Metrics
-  const totalValuation = Object.values(storeStats).reduce((acc, s) => acc + s.value, 0);
-  const totalUnits = Object.values(storeStats).reduce((acc, s) => acc + s.qty, 0);
+  const totalValuation = (Object.values(storeStats) as { value: number }[]).reduce((acc, s) => acc + s.value, 0);
+  const totalUnits = (Object.values(storeStats) as { qty: number }[]).reduce((acc, s) => acc + s.qty, 0);
 
   // Helper Lists
   const uniqueGroups = ['All', ...Array.from(new Set(stores.map(s => s.group))).sort()];
@@ -274,7 +274,7 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
           {viewMode === 'grid' ? (
              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {processedStores.map(store => {
-                   const stats = storeStats[store.id] || { qty: 0, value: 0, count: 0 };
+                   const stats = (storeStats[store.id] as { qty: number, value: number, count: number } | undefined) || { qty: 0, value: 0, count: 0 };
                    return (
                       <div 
                          key={store.id} 
@@ -323,7 +323,7 @@ export const InventoryView: React.FC<Props> = ({ inventory, products, stores, mo
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                       {processedStores.map(store => {
-                         const stats = storeStats[store.id] || { qty: 0, value: 0, count: 0 };
+                         const stats = (storeStats[store.id] as { qty: number, value: number, count: number } | undefined) || { qty: 0, value: 0, count: 0 };
                          return (
                             <tr key={store.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => openStoreStock(store.id)}>
                                <td className="px-4 py-3 font-medium text-slate-800">{store.name}</td>

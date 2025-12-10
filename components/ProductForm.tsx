@@ -112,16 +112,16 @@ export const ProductForm: React.FC<Props> = ({ isOpen, onClose, onSave, productT
   const availableCategories = PRODUCT_CATEGORIES[formData.brand as keyof typeof PRODUCT_CATEGORIES] || ['General'];
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-4">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div className="relative bg-white md:rounded-xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col h-full md:max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+        <div className="px-4 md:px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 flex-shrink-0">
           <h3 className="text-lg font-bold text-slate-800">{productToEdit ? 'Edit Product' : 'Add New Product'}</h3>
           <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-8">
             
             {/* Section 1: Basic Info */}
             <div>
@@ -153,7 +153,7 @@ export const ProductForm: React.FC<Props> = ({ isOpen, onClose, onSave, productT
                 <h4 className="text-sm font-bold text-slate-400 uppercase mb-4 flex items-center gap-2 border-b border-slate-100 pb-2">
                   <Layers size={16} /> Categorization
                </h4>
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1">
                      <label className="text-xs font-bold text-slate-500 uppercase">Brand</label>
                      <select className="w-full px-3 py-2 border rounded-lg bg-white outline-none" value={formData.brand} onChange={e => handleChange('brand', e.target.value)}>
@@ -286,7 +286,7 @@ export const ProductForm: React.FC<Props> = ({ isOpen, onClose, onSave, productT
             </div>
         </div>
 
-        <div className="p-6 border-t border-slate-100 flex gap-3 bg-slate-50/50">
+        <div className="p-4 md:p-6 border-t border-slate-100 flex gap-3 bg-slate-50/50 flex-shrink-0">
            <button onClick={onClose} className="flex-1 py-3 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors">Cancel</button>
            <button 
               onClick={() => { onSave(formData); onClose(); }} 

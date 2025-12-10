@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, Product, StoreProfile, StockMovement, MovementType, SaleRecord, Supplier } from '../types';
 import { ProductAnalytics } from './ProductAnalytics';
@@ -34,10 +33,16 @@ export const InventoryManagement: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'master' | 'ledger' | 'transactions' | 'warehouse' | 'planning' | 'reports'>('ledger');
   
-  // Modals
+  // Modals State
   const [isTransModalOpen, setIsTransModalOpen] = useState(false);
+  
+  // Product Form (Edit/Add) State
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
+  
+  // Product Detail View State (Separate from Edit)
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+
   const [selectedStoreStock, setSelectedStoreStock] = useState<{name: string, items: InventoryItem[]} | null>(null);
   const [isMarkdownModalOpen, setIsMarkdownModalOpen] = useState(false);
   const [markdownProduct, setMarkdownProduct] = useState<Product | null>(null);
@@ -91,7 +96,7 @@ export const InventoryManagement: React.FC<Props> = ({
   }, [inventory, matchedProductIds, matchedStoreIds]);
 
   // 4. Store Stats Calculation (for Ledger)
-  const storeStats = useMemo(() => {
+  const storeStats = useMemo<Record<string, { qty: number, value: number, count: number }>>(() => {
     const stats: Record<string, { qty: number, value: number, count: number }> = {};
     
     matchedStores.forEach(s => {
@@ -135,8 +140,8 @@ export const InventoryManagement: React.FC<Props> = ({
   }, [movements, matchedProductIds, matchedStoreIds]);
 
   // Global Totals for Ticker
-  const totalValuation = Object.values(storeStats).reduce((acc, s) => acc + s.value, 0);
-  const totalUnits = Object.values(storeStats).reduce((acc, s) => acc + s.qty, 0);
+  const totalValuation = (Object.values(storeStats) as { value: number }[]).reduce((acc, s) => acc + s.value, 0);
+  const totalUnits = (Object.values(storeStats) as { qty: number }[]).reduce((acc, s) => acc + s.qty, 0);
 
   // Helper Lists
   const uniqueGroups = ['All', ...Array.from(new Set(stores.map(s => s.group))).sort()];
@@ -158,15 +163,15 @@ export const InventoryManagement: React.FC<Props> = ({
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
             <Package className="text-indigo-600" /> Supply Chain Command Center
           </h2>
-          <p className="text-slate-500">Inventory Operations, Stock Control & Replenishment</p>
+          <p className="text-slate-500 text-sm md:text-base">Inventory Operations, Stock Control & Replenishment</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full md:w-auto">
            <button 
               onClick={() => setIsTransModalOpen(true)}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium shadow-sm hover:bg-indigo-700 flex items-center gap-2"
+              className="flex-1 md:flex-none justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium shadow-sm hover:bg-indigo-700 flex items-center gap-2"
            >
               <ArrowRightLeft size={18} /> Record Movement
            </button>
@@ -186,9 +191,9 @@ export const InventoryManagement: React.FC<Props> = ({
                   onChange={(e) => setSearchTerm(e.target.value)}
                />
             </div>
-            <div className="flex flex-wrap gap-2 flex-1">
+            <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 flex-1">
                <select 
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                   value={filterBrand}
                   onChange={(e) => setFilterBrand(e.target.value)}
                >
@@ -196,7 +201,7 @@ export const InventoryManagement: React.FC<Props> = ({
                   {SAMPLE_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
                </select>
                <select 
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
                >
@@ -204,14 +209,14 @@ export const InventoryManagement: React.FC<Props> = ({
                   {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
                </select>
                <select 
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                   value={filterGroup}
                   onChange={(e) => setFilterGroup(e.target.value)}
                >
                   {uniqueGroups.map(g => <option key={g} value={g}>{g === 'All' ? 'All Retail Groups' : g}</option>)}
                </select>
                <select 
-                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                   value={filterRegion}
                   onChange={(e) => setFilterRegion(e.target.value)}
                >
@@ -221,29 +226,29 @@ export const InventoryManagement: React.FC<Props> = ({
          </div>
 
          {/* Ticker & Sort */}
-         <div className="flex flex-wrap items-center justify-between pt-4 border-t border-slate-100 gap-4">
-            <div className="flex gap-6">
+         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-4 border-t border-slate-100 gap-4">
+            <div className="flex gap-6 w-full sm:w-auto justify-around sm:justify-start">
                <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><Package size={20} /></div>
                   <div>
-                     <p className="text-xs text-slate-500 font-bold uppercase">Total Units (Filtered)</p>
-                     <p className="text-xl font-bold text-slate-800">{totalUnits.toLocaleString()}</p>
+                     <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase">Total Units</p>
+                     <p className="text-lg md:text-xl font-bold text-slate-800">{totalUnits.toLocaleString()}</p>
                   </div>
                </div>
                <div className="flex items-center gap-3">
                   <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><DollarSign size={20} /></div>
                   <div>
-                     <p className="text-xs text-slate-500 font-bold uppercase">Valuation (Cost)</p>
-                     <p className="text-xl font-bold text-slate-800">{formatCurrency(totalValuation)}</p>
+                     <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase">Valuation</p>
+                     <p className="text-lg md:text-xl font-bold text-slate-800">{formatCurrency(totalValuation)}</p>
                   </div>
                </div>
             </div>
 
             {activeTab === 'ledger' && (
-               <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-500 uppercase mr-2">Sort Stores:</span>
+               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <span className="text-xs font-semibold text-slate-500 uppercase mr-2 hidden sm:inline">Sort:</span>
                   <select 
-                     className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none cursor-pointer"
+                     className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none cursor-pointer flex-1 sm:flex-none"
                      value={sortBy}
                      onChange={(e) => setSortBy(e.target.value as any)}
                   >
@@ -253,7 +258,7 @@ export const InventoryManagement: React.FC<Props> = ({
                      <option value="value_low">Lowest Value</option>
                      <option value="name">Name (A-Z)</option>
                   </select>
-                  <div className="w-px h-6 bg-slate-200 mx-2"></div>
+                  <div className="w-px h-6 bg-slate-200 mx-2 hidden sm:block"></div>
                   <div className="flex bg-slate-100 p-1 rounded-lg">
                      <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded transition-all ${viewMode === 'grid' ? 'bg-white shadow text-indigo-600' : 'text-slate-400'}`}><Grid size={16} /></button>
                      <button onClick={() => setViewMode('list')} className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-white shadow text-indigo-600' : 'text-slate-400'}`}><List size={16} /></button>
@@ -264,12 +269,12 @@ export const InventoryManagement: React.FC<Props> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+      <div className="flex overflow-x-auto gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 scrollbar-hide">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex-1 justify-center ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
               activeTab === tab.id ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
             }`}
           >
@@ -283,7 +288,7 @@ export const InventoryManagement: React.FC<Props> = ({
       
       {/* 1. STOCK LEDGER */}
       {activeTab === 'ledger' && (
-         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+         <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
             {viewMode === 'grid' ? (
                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {sortedStores.map(store => {
@@ -311,10 +316,11 @@ export const InventoryManagement: React.FC<Props> = ({
                   })}
                </div>
             ) : (
+               <div className="overflow-x-auto">
                <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 text-xs text-slate-500 uppercase font-semibold">
                      <tr>
-                        <th className="px-4 py-3">Store Name</th>
+                        <th className="px-4 py-3 min-w-[150px]">Store Name</th>
                         <th className="px-4 py-3">Group</th>
                         <th className="px-4 py-3">Region</th>
                         <th className="px-4 py-3 text-right">Items (SKUs)</th>
@@ -343,6 +349,7 @@ export const InventoryManagement: React.FC<Props> = ({
                      })}
                   </tbody>
                </table>
+               </div>
             )}
          </div>
       )}
@@ -350,9 +357,9 @@ export const InventoryManagement: React.FC<Props> = ({
       {/* 2. ITEM MASTER */}
       {activeTab === 'master' && (
          <div className="space-y-4">
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 flex-wrap">
                <button onClick={() => onImportClick('products')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50">
-                  <Upload size={16} /> Import Products
+                  <Upload size={16} /> Import
                </button>
                <button onClick={() => { setSelectedProduct(null); setIsProductFormOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
                   <Plus size={16} /> Add Product
@@ -363,7 +370,7 @@ export const InventoryManagement: React.FC<Props> = ({
                <table className="w-full text-left text-sm text-slate-600">
                   <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
                      <tr>
-                        <th className="px-6 py-4">Product Details</th>
+                        <th className="px-6 py-4 min-w-[250px]">Product Details</th>
                         <th className="px-6 py-4">Attributes</th>
                         <th className="px-6 py-4">Variants</th>
                         <th className="px-6 py-4">Financials</th>
@@ -454,7 +461,7 @@ export const InventoryManagement: React.FC<Props> = ({
                                     <Edit2 size={16} />
                                  </button>
                                  <button
-                                    onClick={() => { setSelectedProduct(p); /* Open Detail View directly */ }}
+                                    onClick={() => { setDetailProduct(p); }}
                                     className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors"
                                     title="View Details"
                                  >
@@ -500,10 +507,11 @@ export const InventoryManagement: React.FC<Props> = ({
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
                <h3 className="font-bold text-slate-800 flex items-center gap-2"><Calculator size={18} className="text-indigo-600"/> Replenishment Suggestions</h3>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-600">
                <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
                   <tr>
-                     <th className="px-6 py-4">Product / SKU</th>
+                     <th className="px-6 py-4 min-w-[200px]">Product / SKU</th>
                      <th className="px-6 py-4 text-center">Status</th>
                      <th className="px-6 py-4 text-right">Current Stock</th>
                      <th className="px-6 py-4 text-right">Reorder Point</th>
@@ -539,6 +547,7 @@ export const InventoryManagement: React.FC<Props> = ({
                   })}
                </tbody>
             </table>
+            </div>
          </div>
       )}
 
@@ -561,9 +570,41 @@ export const InventoryManagement: React.FC<Props> = ({
 
       {/* Global Modals */}
       <TransactionFormModal isOpen={isTransModalOpen} onClose={() => setIsTransModalOpen(false)} stores={stores} products={products} inventory={inventory} onSubmit={onRecordTransaction} />
-      <ProductForm isOpen={isProductFormOpen} onClose={() => setIsProductFormOpen(false)} onSave={() => setIsProductFormOpen(false)} productToEdit={selectedProduct} inventory={inventory} stores={stores} suppliers={suppliers} />
-      <ProductDetailModal isOpen={!!selectedProduct} onClose={() => setSelectedProduct(null)} product={selectedProduct} inventory={inventory} onEdit={() => { setIsProductFormOpen(true); }} />
-      <StoreStockModal isOpen={!!selectedStoreStock} onClose={() => setSelectedStoreStock(null)} storeName={selectedStoreStock?.name || ''} items={selectedStoreStock?.items || []} products={products} onViewProduct={() => {}} />
+      
+      <ProductForm 
+         isOpen={isProductFormOpen} 
+         onClose={() => setIsProductFormOpen(false)} 
+         onSave={() => setIsProductFormOpen(false)} 
+         productToEdit={selectedProduct} 
+         inventory={inventory} 
+         stores={stores} 
+         suppliers={suppliers} 
+      />
+      
+      <ProductDetailModal 
+         isOpen={!!detailProduct} 
+         onClose={() => setDetailProduct(null)} 
+         product={detailProduct} 
+         inventory={inventory} 
+         onEdit={(p) => { 
+            setDetailProduct(null); // Close details view
+            setSelectedProduct(p); // Set for edit
+            setIsProductFormOpen(true); // Open edit form
+         }} 
+      />
+      
+      <StoreStockModal 
+         isOpen={!!selectedStoreStock} 
+         onClose={() => setSelectedStoreStock(null)} 
+         storeName={selectedStoreStock?.name || null} 
+         items={selectedStoreStock?.items || []} 
+         products={products} 
+         onViewProduct={(sku) => {
+            const p = products.find(prod => prod.sku === sku);
+            if (p) setDetailProduct(p); // Open details instead of edit
+         }} 
+      />
+      
       <MarkdownModal isOpen={isMarkdownModalOpen} onClose={() => setIsMarkdownModalOpen(false)} product={markdownProduct} onSave={onSaveMarkdown} />
     </div>
   );

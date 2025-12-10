@@ -84,17 +84,17 @@ export const StoreModal: React.FC<Props> = ({ isOpen, store, onClose, onSave }) 
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-0 md:p-4">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+      <div className="relative bg-white md:rounded-2xl shadow-xl w-full max-w-lg h-full md:h-auto overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+        <div className="px-4 md:px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 flex-shrink-0">
           <h3 className="text-lg font-bold text-slate-800">
             {store ? 'Edit Store Details' : 'Add New Store'}
           </h3>
           <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-slate-600" /></button>
         </div>
         
-        <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div className="p-4 md:p-6 space-y-4 overflow-y-auto flex-1">
           {store && (
             <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg flex items-start gap-2">
                 <AlertCircle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
@@ -104,8 +104,8 @@ export const StoreModal: React.FC<Props> = ({ isOpen, store, onClose, onSave }) 
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-             <div className="col-span-2 space-y-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <div className="col-span-1 sm:col-span-2 space-y-1">
               <label className="text-xs font-semibold text-slate-500 uppercase">Store ID</label>
               <input 
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800 font-mono text-sm"
@@ -114,7 +114,7 @@ export const StoreModal: React.FC<Props> = ({ isOpen, store, onClose, onSave }) 
                 placeholder="store-unique-id"
               />
             </div>
-            <div className="col-span-2 space-y-1">
+            <div className="col-span-1 sm:col-span-2 space-y-1">
               <label className="text-xs font-semibold text-slate-500 uppercase">Store Name</label>
               <input 
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800"
@@ -145,7 +145,7 @@ export const StoreModal: React.FC<Props> = ({ isOpen, store, onClose, onSave }) 
                  onChange={(e) => handleChange('postalCode', e.target.value)}
               />
             </div>
-             <div className="col-span-2 space-y-1">
+             <div className="col-span-1 sm:col-span-2 space-y-1">
               <label className="text-xs font-semibold text-slate-500 uppercase">Address</label>
               <input 
                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 outline-none text-slate-800"
@@ -238,7 +238,7 @@ export const StoreModal: React.FC<Props> = ({ isOpen, store, onClose, onSave }) 
           </div>
         </div>
 
-        <div className="p-6 pt-2 flex gap-3">
+        <div className="p-4 md:p-6 pt-2 flex gap-3 flex-shrink-0 bg-white border-t border-slate-100">
           <button onClick={onClose} className="flex-1 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
           <button 
             onClick={() => onSave(formData)} 
