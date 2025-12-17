@@ -143,6 +143,44 @@ export interface Invoice {
   linkedReference?: string; // Link to Stock Movement Ref
 }
 
+// --- NEW: ACCOUNTS PAYABLE & EXPENSES ---
+
+export interface VendorBill {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  billDate: string;
+  dueDate: string;
+  amount: number;
+  paidAmount: number;
+  status: 'Paid' | 'Unpaid' | 'Overdue' | 'Partial';
+  reference: string; // Invoice Number from Vendor
+  description?: string; // e.g., "PO #1234 Fabric Restock"
+  category: 'COGS' | 'Logistics' | 'Services'; 
+}
+
+export interface Expense {
+  id: string;
+  date: string;
+  category: 'Rent' | 'Salaries' | 'Marketing' | 'Utilities' | 'Software' | 'Travel' | 'Misc';
+  description: string;
+  amount: number;
+  isRecurring: boolean;
+  storeId?: string; // Optional: Link expense to specific store (e.g. Counter Rent)
+  storeName?: string;
+  brand?: string; // Optional: Link expense to specific brand marketing
+}
+
+export interface CashFlowProjection {
+  month: string; // YYYY-MM
+  inflow_collections: number; // From AR
+  inflow_cash_sales: number;
+  outflow_bills: number; // To Vendors (AP)
+  outflow_expenses: number; // OpEx
+  net_cash_flow: number;
+  cumulative_cash: number;
+}
+
 export interface StockTransfer {
   id: string;
   date: string;

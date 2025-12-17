@@ -1,6 +1,9 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { LanguageProvider } from './contexts/LanguageContext';
+import { ERPProvider } from './contexts/ERPContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -10,6 +13,10 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <LanguageProvider>
+      <ERPProvider>
+        <App />
+      </ERPProvider>
+    </LanguageProvider>
   </React.StrictMode>
 );

@@ -1,5 +1,5 @@
 
-import { SaleRecord, ForecastRecord, AggregatedData, StoreProfile, Product, InventoryItem, Invoice, StockMovement, Supplier } from '../types';
+import { SaleRecord, ForecastRecord, AggregatedData, StoreProfile, Product, InventoryItem, Invoice, StockMovement, Supplier, VendorBill, Expense } from '../types';
 import { SAMPLE_BRANDS, PRODUCT_CATEGORIES, CREDIT_TERMS } from '../constants';
 
 const RETAIL_GROUPS = ['Central Group', 'The Mall Group', 'Aeon', 'Robinson', 'Siam Piwat', 'Independent'];
@@ -121,6 +121,88 @@ export const generateMockSuppliers = (): Supplier[] => {
     leadTime: [7, 14, 21, 30][Math.floor(Math.random() * 4)],
     address: `Industrial Park Zone ${i + 1}, Kuala Lumpur`
   }));
+};
+
+// Generate Vendor Bills (Accounts Payable)
+export const generateMockBills = (suppliers: Supplier[]): VendorBill[] => {
+  const bills: VendorBill[] = [];
+  const today = new Date();
+
+  suppliers.forEach(sup => {
+    // Generate 2-5 bills per supplier
+    const count = Math.floor(Math.random() * 4) + 2;
+    for(let i=0; i<count; i++) {
+      const daysAgo = Math.floor(Math.random() * 45);
+      const billDate = new Date(today.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
+      const dueDate = new Date(billDate);
+      dueDate.setDate(dueDate.getDate() + sup.paymentTerms);
+      
+      const amount = 5000 + Math.floor(Math.random() * 20000);
+      const isPaid = Math.random() > 0.4; // 60% unpaid/partial
+
+      bills.push({
+        id: `bill-${sup.id}-${i}`,
+        supplierId: sup.id,
+        supplierName: sup.name,
+        billDate: billDate.toISOString().split('T')[0],
+        dueDate: dueDate.toISOString().split('T')[0],
+        amount,
+        paidAmount: isPaid ? amount : (Math.random() > 0.7 ? amount * 0.5 : 0),
+        status: isPaid ? 'Paid' : (dueDate < today ? 'Overdue' : 'Unpaid'),
+        reference: `INV-${sup.name.substring(0,3).toUpperCase()}-${1000+i}`,
+        category: 'COGS'
+      });
+    }
+  });
+  return bills;
+};
+
+// Generate Expenses
+export const generateMockExpenses = (stores: StoreProfile[]): Expense[] => {
+  const expenses: Expense[] = [];
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+
+  // 1. Corporate Fixed Expenses (Last 3 months)
+  const corpExpenses = [
+    { cat: 'Salaries', amount: 80000, desc: 'HQ Payroll' },
+    { cat: 'Rent', amount: 15000, desc: 'HQ Office Rent' },
+    { cat: 'Software', amount: 2000, desc: 'ERP Subscription' },
+    { cat: 'Marketing', amount: 25000, desc: 'Digital Ads Campaign' }
+  ];
+
+  for(let i=0; i<3; i++) {
+    const d = new Date(currentYear, currentMonth - i, 1);
+    corpExpenses.forEach((exp, idx) => {
+      expenses.push({
+        id: `exp-hq-${i}-${idx}`,
+        date: d.toISOString().split('T')[0],
+        category: exp.cat as any,
+        description: exp.desc,
+        amount: exp.amount,
+        isRecurring: true
+      });
+    });
+  }
+
+  // 2. Store Specific Expenses (e.g. Counter Rent / PC Commission if applicable)
+  // We'll just generate a few random ones for the current month
+  const randomStores = stores.sort(() => 0.5 - Math.random()).slice(0, 10);
+  randomStores.forEach((s, idx) => {
+    expenses.push({
+      id: `exp-store-${idx}`,
+      date: today.toISOString().split('T')[0],
+      category: 'Rent',
+      description: `Counter Rent - ${s.name}`,
+      amount: 2000 + Math.random() * 3000,
+      isRecurring: true,
+      storeId: s.id,
+      storeName: s.name
+    });
+  });
+
+  return expenses;
 };
 
 // NEW: Generate Product Catalog with Attributes

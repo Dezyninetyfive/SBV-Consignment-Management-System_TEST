@@ -15,6 +15,7 @@ import {
   Package, LayoutGrid, ArrowRightLeft, Store, Calculator, BarChart3, 
   Search, Filter, Plus, Edit2, AlertTriangle, CheckCircle, DollarSign, Upload, Grid, List, Tag, Eye
 } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Props {
   inventory: InventoryItem[];
@@ -32,6 +33,7 @@ export const InventoryManagement: React.FC<Props> = ({
   inventory, products, stores, movements, history, suppliers, 
   onRecordTransaction, onImportClick, onSaveMarkdown
 }) => {
+  const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'master' | 'ledger' | 'transactions' | 'warehouse' | 'planning' | 'reports'>('ledger');
   
   // Modals State
@@ -150,12 +152,12 @@ export const InventoryManagement: React.FC<Props> = ({
   const uniqueCategories = ['All', ...Array.from(new Set(Object.values(PRODUCT_CATEGORIES).flat())).sort()];
 
   const tabs = [
-    { id: 'ledger', label: 'Stock Ledger', icon: Package },
-    { id: 'master', label: 'Item Master', icon: LayoutGrid },
-    { id: 'transactions', label: 'Transactions', icon: ArrowRightLeft },
-    { id: 'warehouse', label: 'Warehouse', icon: Store },
-    { id: 'planning', label: 'Planning', icon: Calculator },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
+    { id: 'ledger', label: t('stock_ledger'), icon: Package },
+    { id: 'master', label: t('item_master'), icon: LayoutGrid },
+    { id: 'transactions', label: t('transactions'), icon: ArrowRightLeft },
+    { id: 'warehouse', label: t('warehouse'), icon: Store },
+    { id: 'planning', label: t('planning'), icon: Calculator },
+    { id: 'reports', label: t('reports'), icon: BarChart3 },
   ];
 
   return (
@@ -165,16 +167,16 @@ export const InventoryManagement: React.FC<Props> = ({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Package className="text-indigo-600" /> Supply Chain Command Center
+            <Package className="text-indigo-600" /> {t('supply_chain_center')}
           </h2>
-          <p className="text-slate-500 text-sm md:text-base">Inventory Operations, Stock Control & Replenishment</p>
+          <p className="text-slate-500 text-sm md:text-base">{t('supply_chain_desc')}</p>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
            <button 
               onClick={() => setIsTransModalOpen(true)}
               className="flex-1 md:flex-none justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium shadow-sm hover:bg-indigo-700 flex items-center gap-2"
            >
-              <ArrowRightLeft size={18} /> Record Movement
+              <ArrowRightLeft size={18} /> {t('record_movement')}
            </button>
         </div>
       </div>
@@ -186,7 +188,7 @@ export const InventoryManagement: React.FC<Props> = ({
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                <input 
                   type="text"
-                  placeholder={activeTab === 'master' ? "Search Product SKU/Name..." : "Search Store Name..."}
+                  placeholder={activeTab === 'master' ? t('search') + " Product..." : t('search') + " Store..."}
                   className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -198,7 +200,7 @@ export const InventoryManagement: React.FC<Props> = ({
                   value={filterBrand}
                   onChange={(e) => setFilterBrand(e.target.value)}
                >
-                  <option value="All">All Brands</option>
+                  <option value="All">{t('all_brands')}</option>
                   {SAMPLE_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
                </select>
                <select 
@@ -206,7 +208,7 @@ export const InventoryManagement: React.FC<Props> = ({
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
                >
-                  <option value="All">All Categories</option>
+                  <option value="All">{t('all_categories')}</option>
                   {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
                </select>
                <select 
@@ -214,14 +216,14 @@ export const InventoryManagement: React.FC<Props> = ({
                   value={filterGroup}
                   onChange={(e) => setFilterGroup(e.target.value)}
                >
-                  {uniqueGroups.map(g => <option key={g} value={g}>{g === 'All' ? 'All Retail Groups' : g}</option>)}
+                  {uniqueGroups.map(g => <option key={g} value={g}>{g === 'All' ? t('all_groups') : g}</option>)}
                </select>
                <select 
                   className="px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-full md:w-auto"
                   value={filterRegion}
                   onChange={(e) => setFilterRegion(e.target.value)}
                >
-                  {uniqueRegions.map(r => <option key={r} value={r}>{r === 'All' ? 'All Regions' : r}</option>)}
+                  {uniqueRegions.map(r => <option key={r} value={r}>{r === 'All' ? t('all_regions') : r}</option>)}
                </select>
             </div>
          </div>
@@ -232,14 +234,14 @@ export const InventoryManagement: React.FC<Props> = ({
                <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><Package size={20} /></div>
                   <div>
-                     <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase">Total Units</p>
+                     <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase">{t('total_units')}</p>
                      <p className="text-lg md:text-xl font-bold text-slate-800">{totalUnits.toLocaleString()}</p>
                   </div>
                </div>
                <div className="flex items-center gap-3">
                   <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><DollarSign size={20} /></div>
                   <div>
-                     <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase">Valuation</p>
+                     <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase">{t('valuation')}</p>
                      <p className="text-lg md:text-xl font-bold text-slate-800">{formatCurrency(totalValuation)}</p>
                   </div>
                </div>
@@ -247,17 +249,17 @@ export const InventoryManagement: React.FC<Props> = ({
 
             {activeTab === 'ledger' && (
                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                  <span className="text-xs font-semibold text-slate-500 uppercase mr-2 hidden sm:inline">Sort:</span>
+                  <span className="text-xs font-semibold text-slate-500 uppercase mr-2 hidden sm:inline">{t('sort_by')}:</span>
                   <select 
                      className="px-3 py-1.5 border border-slate-200 rounded-lg text-base sm:text-sm bg-white focus:outline-none cursor-pointer flex-1 sm:flex-none"
                      value={sortBy}
                      onChange={(e) => setSortBy(e.target.value as any)}
                   >
-                     <option value="stock_high">Highest Stock</option>
-                     <option value="stock_low">Lowest Stock</option>
-                     <option value="value_high">Highest Value</option>
-                     <option value="value_low">Lowest Value</option>
-                     <option value="name">Name (A-Z)</option>
+                     <option value="stock_high">{t('highest_stock')}</option>
+                     <option value="stock_low">{t('lowest_stock')}</option>
+                     <option value="value_high">{t('highest_value')}</option>
+                     <option value="value_low">{t('lowest_value')}</option>
+                     <option value="name">{t('name_az')}</option>
                   </select>
                   <div className="w-px h-6 bg-slate-200 mx-2 hidden sm:block"></div>
                   <div className="flex bg-slate-100 p-1 rounded-lg">
@@ -321,12 +323,12 @@ export const InventoryManagement: React.FC<Props> = ({
                <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 text-xs text-slate-500 uppercase font-semibold">
                      <tr>
-                        <th className="px-4 py-3 min-w-[150px]">Store Name</th>
-                        <th className="px-4 py-3">Group</th>
-                        <th className="px-4 py-3">Region</th>
+                        <th className="px-4 py-3 min-w-[150px]">{t('store')}</th>
+                        <th className="px-4 py-3">{t('all_groups')}</th>
+                        <th className="px-4 py-3">{t('all_regions')}</th>
                         <th className="px-4 py-3 text-right">Items (SKUs)</th>
-                        <th className="px-4 py-3 text-right">Total Units</th>
-                        <th className="px-4 py-3 text-right">Valuation</th>
+                        <th className="px-4 py-3 text-right">{t('total_units')}</th>
+                        <th className="px-4 py-3 text-right">{t('valuation')}</th>
                         <th className="px-4 py-3"></th>
                      </tr>
                   </thead>
@@ -344,7 +346,7 @@ export const InventoryManagement: React.FC<Props> = ({
                               <td className="px-4 py-3 text-right font-mono">{stats.count}</td>
                               <td className="px-4 py-3 text-right font-bold">{stats.qty}</td>
                               <td className="px-4 py-3 text-right font-bold text-emerald-600">{formatCurrency(stats.value)}</td>
-                              <td className="px-4 py-3 text-right"><button className="text-xs text-indigo-600 hover:underline">View</button></td>
+                              <td className="px-4 py-3 text-right"><button className="text-xs text-indigo-600 hover:underline">{t('view')}</button></td>
                            </tr>
                         );
                      })}
@@ -360,10 +362,10 @@ export const InventoryManagement: React.FC<Props> = ({
          <div className="space-y-4">
             <div className="flex justify-end gap-2 flex-wrap">
                <button onClick={() => onImportClick('products')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50">
-                  <Upload size={16} /> Import
+                  <Upload size={16} /> {t('import')}
                </button>
                <button onClick={() => { setSelectedProduct(null); setIsProductFormOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
-                  <Plus size={16} /> Add Product
+                  <Plus size={16} /> {t('add_new')} Product
                </button>
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -371,12 +373,12 @@ export const InventoryManagement: React.FC<Props> = ({
                <table className="w-full text-left text-sm text-slate-600">
                   <thead className="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
                      <tr>
-                        <th className="px-6 py-4 min-w-[250px]">Product Details</th>
-                        <th className="px-6 py-4">Attributes</th>
-                        <th className="px-6 py-4">Variants</th>
-                        <th className="px-6 py-4">Financials</th>
-                        <th className="px-6 py-4 text-center">Global Stock</th>
-                        <th className="px-6 py-4 text-right">Action</th>
+                        <th className="px-6 py-4 min-w-[250px]">{t('product_details')}</th>
+                        <th className="px-6 py-4">{t('attributes')}</th>
+                        <th className="px-6 py-4">{t('variants')}</th>
+                        <th className="px-6 py-4">{t('financials')}</th>
+                        <th className="px-6 py-4 text-center">{t('global_stock')}</th>
+                        <th className="px-6 py-4 text-right">{t('actions')}</th>
                      </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -442,7 +444,7 @@ export const InventoryManagement: React.FC<Props> = ({
                                  <span className={`text-lg font-bold ${totalStock <= (p.inventoryPlanning?.reorderPoint || 0) ? 'text-red-500' : 'text-slate-800'}`}>
                                     {totalStock}
                                  </span>
-                                 <span className="text-[10px] text-indigo-600 opacity-0 group-hover/stock:opacity-100 font-medium">View Detail</span>
+                                 <span className="text-[10px] text-indigo-600 opacity-0 group-hover/stock:opacity-100 font-medium">{t('view')}</span>
                               </button>
                            </td>
                            <td className="px-6 py-4 text-right">
@@ -457,14 +459,14 @@ export const InventoryManagement: React.FC<Props> = ({
                                  <button 
                                     onClick={() => { setSelectedProduct(p); setIsProductFormOpen(true); }} 
                                     className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                                    title="Edit Product"
+                                    title={t('edit')}
                                  >
                                     <Edit2 size={16} />
                                  </button>
                                  <button
                                     onClick={() => { setDetailProduct(p); }}
                                     className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded transition-colors"
-                                    title="View Details"
+                                    title={t('view')}
                                  >
                                     <Eye size={16} />
                                  </button>
@@ -484,7 +486,7 @@ export const InventoryManagement: React.FC<Props> = ({
          <div className="space-y-4">
             <div className="flex justify-end">
                <button onClick={() => onImportClick('stock_movements')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50">
-                  <Upload size={16} /> Import History
+                  <Upload size={16} /> {t('import')}
                </button>
             </div>
             <StockMovementLog movements={filteredMovements} />
@@ -525,18 +527,18 @@ export const InventoryManagement: React.FC<Props> = ({
                      const rp = p.inventoryPlanning?.reorderPoint || 10;
                      const ss = p.inventoryPlanning?.safetyStock || 5;
                      const suggested = Math.max(0, (rp + ss) - currentStock);
-                     let status = 'OK';
-                     if (currentStock <= 0) status = 'Critical';
-                     else if (currentStock < rp) status = 'Reorder';
-                     else if (currentStock > rp * 3) status = 'Overstock';
+                     let status = t('ok');
+                     if (currentStock <= 0) status = t('critical');
+                     else if (currentStock < rp) status = t('reorder');
+                     else if (currentStock > rp * 3) status = t('overstock');
 
                      return (
                         <tr key={p.id} className="hover:bg-slate-50">
                            <td className="px-6 py-4"><div className="font-bold text-slate-800">{p.name}</div><div className="text-xs text-slate-400 font-mono">{p.sku}</div></td>
                            <td className="px-6 py-4 text-center">
-                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${status === 'Critical' ? 'bg-red-100 text-red-700' : status === 'Reorder' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                 {status === 'Critical' && <AlertTriangle size={12} />}
-                                 {status === 'OK' && <CheckCircle size={12} />}
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${status === t('critical') ? 'bg-red-100 text-red-700' : status === t('reorder') ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                 {status === t('critical') && <AlertTriangle size={12} />}
+                                 {status === t('ok') && <CheckCircle size={12} />}
                                  {status}
                               </span>
                            </td>
@@ -557,11 +559,11 @@ export const InventoryManagement: React.FC<Props> = ({
          <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm text-center">
-                  <p className="text-sm font-bold text-slate-500 uppercase">Filtered Inventory Value</p>
+                  <p className="text-sm font-bold text-slate-500 uppercase">{t('valuation')} (Filtered)</p>
                   <p className="text-3xl font-bold text-emerald-700 mt-2">{formatCurrency(totalValuation)}</p>
                </div>
                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm text-center">
-                  <p className="text-sm font-bold text-slate-500 uppercase">Filtered Units</p>
+                  <p className="text-sm font-bold text-slate-500 uppercase">{t('total_units')} (Filtered)</p>
                   <p className="text-3xl font-bold text-indigo-700 mt-2">{totalUnits.toLocaleString()}</p>
                </div>
             </div>

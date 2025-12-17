@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { SaleRecord, StockMovement, StoreProfile, Product, InventoryItem, MovementType, Supplier } from '../types';
+import { SaleRecord, StoreProfile, Supplier, MovementType, StockMovement, Product, InventoryItem } from '../types';
 import { 
   Table, 
   FileText, 
@@ -19,7 +19,6 @@ import {
   Square,
   ArrowUp,
   ArrowDown,
-  Download,
   X
 } from 'lucide-react';
 import { formatCurrency } from '../utils/dataUtils';
@@ -29,6 +28,7 @@ import { AddRecordModal } from './AddRecordModal';
 import { SupplierList } from './SupplierList';
 import { SupplierModal } from './SupplierModal';
 import { SAMPLE_BRANDS } from '../constants';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Props {
   history: SaleRecord[];
@@ -42,13 +42,14 @@ interface Props {
   onEditRecord: (record: SaleRecord) => void;
   onDeleteRecord: (id: string) => void;
   onBulkDelete: (ids: string[]) => void;
-  onRecordTransaction: (data: { date: string, type: MovementType, storeId: string, productId: string, variant: string, quantity: number, reference: string }) => void;
+  onRecordTransaction: (data: any) => void;
 }
 
 export const DataManagement: React.FC<Props> = ({ 
-  history, movements, stores, products, inventory, suppliers = [], targetStore,
-  onImportClick, onEditRecord, onDeleteRecord, onBulkDelete, onRecordTransaction 
+  history, stores, suppliers = [], targetStore,
+  onImportClick, onEditRecord, onDeleteRecord, onBulkDelete
 }) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'sales' | 'stores' | 'suppliers'>('sales');
   
   // --- Modals State ---
@@ -159,16 +160,16 @@ export const DataManagement: React.FC<Props> = ({
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                <Table className="text-indigo-600" /> Data Management
+                <Table className="text-indigo-600" /> {t('data')}
              </h2>
-             <p className="text-slate-500">Master Data Administration & Financial Records</p>
+             <p className="text-slate-500">{t('master_data_admin')}</p>
           </div>
           
           <div className="bg-slate-100 p-1 rounded-lg flex overflow-x-auto max-w-full">
              {[
-               { id: 'sales', label: 'Sales Records', icon: FileText },
-               { id: 'stores', label: 'Store Network', icon: Store },
-               { id: 'suppliers', label: 'Suppliers', icon: Truck },
+               { id: 'sales', label: t('sales_records'), icon: FileText },
+               { id: 'stores', label: t('store_network'), icon: Store },
+               { id: 'suppliers', label: t('suppliers'), icon: Truck },
              ].map(tab => (
                <button
                  key={tab.id}
@@ -217,7 +218,7 @@ export const DataManagement: React.FC<Props> = ({
                                onChange={(e) => setFilterBrand(e.target.value)}
                                className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                             >
-                               <option value="All">All Brands</option>
+                               <option value="All">{t('all_brands')}</option>
                                {SAMPLE_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
                             </select>
                          </div>
@@ -230,7 +231,7 @@ export const DataManagement: React.FC<Props> = ({
                                onChange={(e) => setFilterStore(e.target.value)}
                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                             >
-                               <option value="All">All Stores</option>
+                               <option value="All">{t('all_stores')}</option>
                                {stores.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                             </select>
                          </div>
@@ -242,13 +243,13 @@ export const DataManagement: React.FC<Props> = ({
                            onClick={() => onImportClick('sales')}
                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2"
                          >
-                           <Upload size={16} /> Import
+                           <Upload size={16} /> {t('import')}
                          </button>
                          <button 
                            onClick={() => { setRecordToEdit(null); setIsAddRecordModalOpen(true); }}
                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"
                          >
-                           <Plus size={16} /> Add Sale
+                           <Plus size={16} /> {t('add_new')}
                          </button>
                       </div>
                    </div>
@@ -259,14 +260,14 @@ export const DataManagement: React.FC<Props> = ({
                    <div className="flex items-center justify-between bg-indigo-50 p-3 rounded-lg border border-indigo-100 animate-in slide-in-from-top-2">
                       <div className="flex items-center gap-3">
                          <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded">{selectedIds.size} Selected</span>
-                         <span className="text-sm text-indigo-700 font-medium">Bulk Actions:</span>
+                         <span className="text-sm text-indigo-700 font-medium">{t('bulk_actions')}:</span>
                       </div>
                       <div className="flex gap-2">
                          <button 
                             onClick={handleBulkDeleteAction}
                             className="flex items-center gap-1 px-3 py-1.5 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-md text-sm font-medium transition-colors"
                          >
-                            <Trash2 size={14} /> Delete Selected
+                            <Trash2 size={14} /> {t('delete_selected')}
                          </button>
                          <button 
                             onClick={() => setSelectedIds(new Set())}
@@ -290,18 +291,18 @@ export const DataManagement: React.FC<Props> = ({
                                   </button>
                                </th>
                                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('date')}>
-                                  <div className="flex items-center gap-1">Date <SortIcon column="date" /></div>
+                                  <div className="flex items-center gap-1">{t('date')} <SortIcon column="date" /></div>
                                </th>
                                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('counter')}>
-                                  <div className="flex items-center gap-1">Store <SortIcon column="counter" /></div>
+                                  <div className="flex items-center gap-1">{t('store')} <SortIcon column="counter" /></div>
                                </th>
                                <th className="px-6 py-4 cursor-pointer hover:bg-slate-100" onClick={() => handleSort('brand')}>
-                                  <div className="flex items-center gap-1">Brand <SortIcon column="brand" /></div>
+                                  <div className="flex items-center gap-1">{t('brand')} <SortIcon column="brand" /></div>
                                </th>
                                <th className="px-6 py-4 text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('amount')}>
-                                  <div className="flex items-center justify-end gap-1">Amount <SortIcon column="amount" /></div>
+                                  <div className="flex items-center justify-end gap-1">{t('amount')} <SortIcon column="amount" /></div>
                                </th>
-                               <th className="px-6 py-4 text-right">Actions</th>
+                               <th className="px-6 py-4 text-right">{t('actions')}</th>
                             </tr>
                          </thead>
                          <tbody className="divide-y divide-slate-100">
@@ -363,7 +364,7 @@ export const DataManagement: React.FC<Props> = ({
                    {/* Pagination Controls */}
                    <div className="p-4 border-t border-slate-200 flex justify-between items-center bg-white">
                       <div className="text-xs text-slate-500">
-                         Showing {paginatedSales.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredSales.length)} of {filteredSales.length} records
+                         {t('showing_records')} {paginatedSales.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, filteredSales.length)} / {filteredSales.length}
                       </div>
                       <div className="flex items-center gap-2">
                          <select 
@@ -436,7 +437,7 @@ export const DataManagement: React.FC<Props> = ({
           isOpen={isAddRecordModalOpen}
           onClose={() => setIsAddRecordModalOpen(false)}
           onSubmit={(r) => {
-             onEditRecord(r); // This is passed from App.tsx which handles Add/Edit based on ID presence
+             onEditRecord(r); 
              setIsAddRecordModalOpen(false);
           }}
           existingHistory={history}
