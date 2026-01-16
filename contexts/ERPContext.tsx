@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { 
   StoreProfile, SaleRecord, Product, InventoryItem, StockMovement, 
@@ -46,7 +45,7 @@ interface ERPContextType {
 
 const ERPContext = createContext<ERPContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'salescast_erp_data_v2'; // Changed key to reset to optimized data
+const STORAGE_KEY = 'celestrion_erp_data_v1';
 
 export const ERPProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [stores, setStores] = useState<StoreProfile[]>([]);

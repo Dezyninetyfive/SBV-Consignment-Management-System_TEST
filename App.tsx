@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   LayoutDashboard, Database, Package, TrendingUp, DollarSign, MessageSquare, Menu, X, ShieldCheck, Globe, PieChart, Sparkles, CreditCard
@@ -53,7 +52,7 @@ export default function App() {
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
           <div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">SalesCast Engine</h1>
+            <h1 className="text-xl font-bold text-slate-800 tracking-tight">Celestrion Engine</h1>
             <p className="text-slate-500 font-medium">Booting core data streams...</p>
           </div>
         </div>
@@ -127,7 +126,7 @@ export default function App() {
                <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
                   <TrendingUp className="text-white" size={20} />
                </div>
-               <span className="font-bold text-lg tracking-tight">SalesCast</span>
+               <span className="font-bold text-lg tracking-tight">Celestrion</span>
             </div>
             <button className="lg:hidden text-slate-400" onClick={() => setIsSidebarOpen(false)}><X size={20} /></button>
          </div>
@@ -143,7 +142,7 @@ export default function App() {
          </div>
       </aside>
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-         <div className="lg:hidden bg-white border-b border-slate-200 p-4 flex items-center gap-4"><button onClick={() => setIsSidebarOpen(true)} className="text-slate-600"><Menu size={24} /></button><span className="font-bold text-slate-800">SalesCast</span></div>
+         <div className="lg:hidden bg-white border-b border-slate-200 p-4 flex items-center gap-4"><button onClick={() => setIsSidebarOpen(true)} className="text-slate-600"><Menu size={24} /></button><span className="font-bold text-slate-800">Celestrion</span></div>
          <div className="flex-1 overflow-auto p-4 md:p-8"><div className="max-w-7xl mx-auto">{renderContent()}</div></div>
       </main>
       <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} store={paymentStore} invoices={invoices} onRecordPayment={actions.recordPayment} />

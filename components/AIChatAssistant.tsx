@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, User, Bot } from 'lucide-react';
 import { askBusinessQuestion } from '../services/geminiService';
@@ -19,7 +18,7 @@ export const AIChatAssistant: React.FC<Props> = ({ contextData }) => {
     {
       id: 'welcome',
       sender: 'ai',
-      text: "Hello! I'm the brain of SalesCast. I can help you analyze sales, inventory risks, and store performance. What would you like to know?",
+      text: "Hello! I'm the brain of Celestrion. I can help you analyze sales, inventory risks, and store performance. What would you like to know?",
       timestamp: new Date()
     }
   ]);
@@ -89,7 +88,7 @@ export const AIChatAssistant: React.FC<Props> = ({ contextData }) => {
           <Sparkles size={20} className="text-white" />
         </div>
         <div>
-          <h3 className="font-bold">SalesCast Brain</h3>
+          <h3 className="font-bold">Celestrion Brain</h3>
           <p className="text-xs text-indigo-100">Powered by Gemini 3.0 Pro</p>
         </div>
       </div>

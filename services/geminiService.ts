@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { SaleRecord, ForecastResponse, ForecastRecord } from '../types';
 import { AI_MODEL_FORECAST } from '../constants';
@@ -104,7 +103,7 @@ export const askBusinessQuestion = async (query: string, contextData: any): Prom
   
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const prompt = `Business Context: ${JSON.stringify(contextData)}\n\nQuestion: ${query}`;
+    const prompt = `You are Celestrion Intelligence. Answer the following user question based on the provided business context.\n\nBusiness Context: ${JSON.stringify(contextData)}\n\nQuestion: ${query}`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
