@@ -13,27 +13,19 @@ import {
 import { generateForecast } from '../services/geminiService';
 
 interface ERPContextType {
-  // Master Data
   stores: StoreProfile[];
   products: Product[];
   suppliers: Supplier[];
-  
-  // Transactional Data
   history: SaleRecord[];
   inventory: InventoryItem[];
   movements: StockMovement[];
-  invoices: Invoice[]; // AR
-  bills: VendorBill[]; // AP
+  invoices: Invoice[]; 
+  bills: VendorBill[]; 
   expenses: Expense[];
-  
-  // Planning
   forecasts: ForecastRecord[];
   planningConfig: PlanningConfig;
-  
-  // System State
   loading: boolean;
-  
-  // Actions ( The Nerve System )
+  isSynced: boolean;
   actions: {
     recordStockTransaction: (data: { date: string, type: MovementType, storeId: string, productId: string, variant: string, quantity: number, reference: string }) => void;
     recordPayment: (invoiceIds: string[], amount: number, method: string, ref: string) => void;
@@ -48,13 +40,15 @@ interface ERPContextType {
     deleteRecord: (id: string) => void;
     bulkDeleteRecords: (ids: string[]) => void;
     importData: (type: string, data: any[]) => void;
+    resetData: () => void;
   };
 }
 
 const ERPContext = createContext<ERPContextType | undefined>(undefined);
 
+const STORAGE_KEY = 'salescast_erp_data_v2'; // Changed key to reset to optimized data
+
 export const ERPProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // --- Data State ---
   const [stores, setStores] = useState<StoreProfile[]>([]);
   const [history, setHistory] = useState<SaleRecord[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -64,170 +58,99 @@ export const ERPProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [bills, setBills] = useState<VendorBill[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  
-  // --- Planning State ---
   const [forecasts, setForecasts] = useState<ForecastRecord[]>([]);
   const [planningConfig, setPlanningConfig] = useState<PlanningConfig>({
     targets: {},
     margins: {},
     targetStockCover: {}
   });
-
   const [loading, setLoading] = useState(true);
+  const [isSynced, setIsSynced] = useState(false);
 
-  // --- Initialization (The Genesis) ---
   useEffect(() => {
-    const loadData = async () => {
-      const _suppliers = generateMockSuppliers();
-      const _stores = generateMockStores();
-      const _history = generateMockHistory(_stores);
-      const _products = generateMockProducts(_suppliers);
-      const _inventory = generateMockInventory(_stores, _products);
-      const _movements = generateMockStockMovements(_inventory, _products);
-      const _invoices = generateMockInvoices(_stores);
-      const _bills = generateMockBills(_suppliers);
-      const _expenses = generateMockExpenses(_stores);
-
-      setSuppliers(_suppliers);
-      setStores(_stores);
-      setHistory(_history);
-      setProducts(_products);
-      setInventory(_inventory);
-      setMovements(_movements);
-      setInvoices(_invoices);
-      setBills(_bills);
-      setExpenses(_expenses);
-
-      // Async Forecast Generation
-      const forecastResponse = await generateForecast(_history, new Date().getFullYear() + 1, { useAI: false });
-      setForecasts(forecastResponse.forecasts);
-
-      setLoading(false);
-    };
-
-    loadData();
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        setStores(parsed.stores || []);
+        setHistory(parsed.history || []);
+        setProducts(parsed.products || []);
+        setInventory(parsed.inventory || []);
+        setMovements(parsed.movements || []);
+        setInvoices(parsed.invoices || []);
+        setSuppliers(parsed.suppliers || []);
+        setBills(parsed.bills || []);
+        setExpenses(parsed.expenses || []);
+        setPlanningConfig(parsed.planningConfig || { targets: {}, margins: {}, targetStockCover: {} });
+        
+        generateForecast(parsed.history || [], new Date().getFullYear() + 1, { useAI: false })
+          .then(res => setForecasts(res.forecasts));
+          
+        setLoading(false);
+        setIsSynced(true);
+      } catch (e) {
+        initializeDefaultData();
+      }
+    } else {
+      initializeDefaultData();
+    }
   }, []);
 
-  // --- Actions ---
+  const initializeDefaultData = async () => {
+    const _suppliers = generateMockSuppliers();
+    const _stores = generateMockStores();
+    const _history = generateMockHistory(_stores);
+    const _products = generateMockProducts(_suppliers);
+    const _inventory = generateMockInventory(_stores, _products);
+    const _movements = generateMockStockMovements(_inventory, _products);
+    const _invoices = generateMockInvoices(_stores);
+    const _bills = generateMockBills(_suppliers);
+    const _expenses = generateMockExpenses(_stores);
 
-  const handleUpdateTarget = (year: number, month: number, brand: string, counter: string, amount: number) => {
-    const key = `${year}-${String(month).padStart(2, '0')}|${brand}|${counter}`;
-    setPlanningConfig(prev => ({ ...prev, targets: { ...prev.targets, [key]: amount } }));
+    setSuppliers(_suppliers);
+    setStores(_stores);
+    setHistory(_history);
+    setProducts(_products);
+    setInventory(_inventory);
+    setMovements(_movements);
+    setInvoices(_invoices);
+    setBills(_bills);
+    setExpenses(_expenses);
+
+    const forecastResponse = await generateForecast(_history, new Date().getFullYear() + 1, { useAI: false });
+    setForecasts(forecastResponse.forecasts);
+    setLoading(false);
+    setIsSynced(true);
   };
 
-  const handleUpdateMargin = (brand: string, margin: number) => {
-    setPlanningConfig(prev => ({ ...prev, margins: { ...prev.margins, [brand]: margin } }));
-  };
-
-  const handleUpdateStockCover = (brand: string, counter: string, months: number) => {
-    const key = `${brand}|${counter}`;
-    setPlanningConfig(prev => ({ ...prev, targetStockCover: { ...prev.targetStockCover, [key]: months } }));
-  };
-
-  const handleRecordPayment = (invoiceIds: string[], amount: number, method: string, ref: string) => {
-    setInvoices(prev => prev.map(inv => {
-        if (invoiceIds.includes(inv.id)) {
-            const due = inv.amount - (inv.paidAmount || 0);
-            const paid = (inv.paidAmount || 0) + Math.min(due, amount); 
-            const status = paid >= inv.amount ? 'Paid' as const : 'Partial' as const;
-            return { 
-              ...inv, 
-              paidAmount: paid, 
-              status, 
-              payments: [...(inv.payments || []), {id: Date.now().toString(), date: new Date().toISOString().split('T')[0], amount, method, reference: ref}] 
-            };
-        }
-        return inv;
-    }));
-  };
-
-  const handlePayBill = (billId: string, amount: number) => {
-     setBills(prev => prev.map(b => {
-        if(b.id === billId) {
-           return { ...b, paidAmount: b.paidAmount + amount, status: 'Paid' as const };
-        }
-        return b;
-     }));
-  };
-
-  const handleAddBill = (bill: VendorBill) => {
-    setBills(prev => [bill, ...prev]);
-  };
-
-  const handleAddExpense = (expense: Expense) => {
-     setExpenses(prev => [...prev, expense]);
-  };
-
-  const handleDeleteRecord = (id: string) => {
-    setHistory(prev => prev.filter(r => r.id !== id));
-    // Cascade delete linked invoices via movement
-    const linkedMovement = movements.find(m => m.linkedSaleId === id);
-    if (linkedMovement && linkedMovement.linkedInvoiceId) {
-       setInvoices(prev => prev.filter(inv => inv.id !== linkedMovement.linkedInvoiceId));
-    }
-  };
-
-  const handleBulkDelete = (ids: string[]) => {
-    setHistory(prev => prev.filter(r => !ids.includes(r.id)));
-    const linkedInvoiceIds: string[] = [];
-    movements.forEach(m => {
-       if (m.linkedSaleId && ids.includes(m.linkedSaleId) && m.linkedInvoiceId) {
-          linkedInvoiceIds.push(m.linkedInvoiceId);
-       }
-    });
-    if (linkedInvoiceIds.length > 0) {
-       setInvoices(prev => prev.filter(inv => !linkedInvoiceIds.includes(inv.id)));
-    }
-  };
-
-  const handleEditRecord = (record: SaleRecord) => {
-     const existing = history.find(r => r.id === record.id);
-     if (existing) {
-        setHistory(prev => prev.map(r => r.id === record.id ? record : r));
-        // Cascade update invoice amount if amount changed
-        if (existing.amount !== record.amount) {
-           const linkedMovement = movements.find(m => m.linkedSaleId === record.id);
-           if (linkedMovement && linkedMovement.linkedInvoiceId) {
-              setInvoices(prev => prev.map(inv => {
-                 if (inv.id === linkedMovement.linkedInvoiceId) {
-                    const store = stores.find(s => s.id === inv.storeId);
-                    const marginPct = store?.margins[record.brand] || 25;
-                    const newNet = record.amount * (1 - (marginPct / 100));
-                    return { ...inv, amount: newNet };
-                 }
-                 return inv;
-              }));
-           }
-        }
-     } else {
-        setHistory(prev => [record, ...prev]);
-     }
-  };
-
-  const handleSaveMarkdown = (productId: string, price: number) => {
-    setProducts(prev => prev.map(p => {
-      if (p.id === productId) {
-        return { ...p, markdownPrice: price > 0 ? price : undefined };
+  useEffect(() => {
+    if (!loading) {
+      const dataToSave = {
+        stores, history, products, inventory, movements, invoices, suppliers, bills, expenses, planningConfig
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+        setIsSynced(false);
+        const timer = setTimeout(() => setIsSynced(true), 500);
+        return () => clearTimeout(timer);
+      } catch (e) {
+        console.warn("LocalStorage quota exceeded. Data may not persist between sessions.");
       }
-      return p;
-    }));
-  };
+    }
+  }, [stores, history, products, inventory, movements, invoices, suppliers, bills, expenses, planningConfig, loading]);
 
-  // --- Unified Transaction Engine ---
   const handleRecordStockTransaction = (data: { date: string, type: MovementType, storeId: string, productId: string, variant: string, quantity: number, reference: string }) => {
      const product = products.find(p => p.id === data.productId);
      const store = stores.find(s => s.id === data.storeId);
-     
      if (!product || !store) return;
 
      let qty = data.quantity;
      if (['Sale', 'Transfer Out'].includes(data.type)) qty = -Math.abs(data.quantity);
      else if (['Restock', 'Transfer In', 'Return'].includes(data.type)) qty = Math.abs(data.quantity);
 
-     const saleId = `sale-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-     const invoiceId = `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+     const saleId = `sale-${Date.now()}`;
+     const invoiceId = `inv-${Date.now()}`;
 
-     // 1. Create Stock Movement Record
      const newMove: StockMovement = {
         id: `mov-${Date.now()}`,
         date: data.date,
@@ -240,27 +163,25 @@ export const ERPProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         variant: data.variant,
         quantity: qty,
         reference: data.reference,
-        linkedSaleId: data.type === 'Sale' || data.type === 'Return' ? saleId : undefined,
+        linkedSaleId: data.type === 'Sale' ? saleId : undefined,
         linkedInvoiceId: data.type === 'Sale' || data.type === 'Return' ? invoiceId : undefined
      };
      setMovements(prev => [newMove, ...prev]);
 
-     // 2. Update Physical Inventory
      setInventory(prev => {
         const existing = prev.find(i => i.storeId === data.storeId && i.productId === data.productId);
         if (existing) {
-           const newQty = existing.quantity + qty;
            const newVariants = { ...existing.variantQuantities };
            newVariants[data.variant] = (newVariants[data.variant] || 0) + qty;
-           return prev.map(i => i === existing ? { ...i, quantity: newQty, variantQuantities: newVariants } : i);
+           return prev.map(i => i.id === existing.id ? { ...i, quantity: i.quantity + qty, variantQuantities: newVariants } : i);
         } else {
            return [...prev, {
               id: `inv-${Date.now()}`,
-              storeId: data.storeId,
+              storeId: store.id,
               storeName: store.name,
-              productId: data.productId,
-              productName: product.name,
+              productId: product.id,
               sku: product.sku,
+              productName: product.name,
               brand: product.brand,
               quantity: qty,
               variantQuantities: { [data.variant]: qty }
@@ -268,28 +189,16 @@ export const ERPProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
      });
 
-     // 3. Financial Interconnectivity (AR Generation)
      if (data.type === 'Sale') {
-        const saleAmount = (product.markdownPrice || product.price) * Math.abs(qty);
-        const newSale: SaleRecord = {
-           id: saleId,
-           date: data.date,
-           brand: product.brand,
-           counter: store.name,
-           amount: saleAmount
-        };
-        setHistory(prev => [...prev, newSale]);
-
+        const amount = (product.markdownPrice || product.price) * Math.abs(qty);
+        setHistory(prev => [{ id: saleId, date: data.date, brand: product.brand, counter: store.name, amount }, ...prev]);
         const marginPct = store.margins[product.brand] || 25;
-        const deduction = saleAmount * (marginPct / 100);
-        const netReceivable = saleAmount - deduction;
-        
+        const netReceivable = amount * (1 - (marginPct / 100));
         const dueDate = new Date(data.date);
         dueDate.setDate(dueDate.getDate() + store.creditTerm);
 
-        const newInvoice: Invoice = {
+        setInvoices(prev => [{
            id: invoiceId,
-           type: 'Invoice',
            storeId: store.id,
            storeName: store.name,
            brand: product.brand,
@@ -300,67 +209,36 @@ export const ERPProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
            status: 'Unpaid',
            payments: [],
            linkedReference: data.reference
-        };
-        setInvoices(prev => [...prev, newInvoice]);
-     } 
-     else if (data.type === 'Return') {
-        const returnAmount = (product.markdownPrice || product.price) * Math.abs(data.quantity);
-        const newSale: SaleRecord = {
-           id: saleId,
-           date: data.date,
-           brand: product.brand,
-           counter: store.name,
-           amount: -returnAmount
-        };
-        setHistory(prev => [...prev, newSale]);
-
-        const marginPct = store.margins[product.brand] || 25;
-        const deduction = returnAmount * (marginPct / 100);
-        const netRefundable = returnAmount - deduction;
-
-        const newCreditNote: Invoice = {
-           id: invoiceId,
-           type: 'Credit Note',
-           storeId: store.id,
-           storeName: store.name,
-           brand: product.brand,
-           amount: -netRefundable,
-           paidAmount: 0,
-           issueDate: data.date,
-           dueDate: data.date, 
-           status: 'Unpaid',
-           payments: [],
-           linkedReference: data.reference
-        };
-        setInvoices(prev => [...prev, newCreditNote]);
+        }, ...prev]);
      }
   };
 
-  const handleImportData = (type: string, data: any[]) => {
-      if(type === 'sales') setHistory(prev => [...prev, ...data]);
-      if(type === 'stores') setStores(prev => [...prev, ...data]);
-      if(type === 'products') setProducts(prev => [...prev, ...data]);
-      // Implement other imports as needed
+  const handleReset = () => {
+    if (confirm("This will erase all your custom data and reload mocks. Continue?")) {
+      localStorage.removeItem(STORAGE_KEY);
+      window.location.reload();
+    }
   };
 
   return (
     <ERPContext.Provider value={{
       stores, products, suppliers, history, inventory, movements, invoices, bills, expenses,
-      forecasts, planningConfig, loading,
+      forecasts, planningConfig, loading, isSynced,
       actions: {
         recordStockTransaction: handleRecordStockTransaction,
-        recordPayment: handleRecordPayment,
-        payBill: handlePayBill,
-        addBill: handleAddBill,
-        addExpense: handleAddExpense,
-        updateTarget: handleUpdateTarget,
-        updateMargin: handleUpdateMargin,
-        updateStockCover: handleUpdateStockCover,
-        saveMarkdown: handleSaveMarkdown,
-        editRecord: handleEditRecord,
-        deleteRecord: handleDeleteRecord,
-        bulkDeleteRecords: handleBulkDelete,
-        importData: handleImportData
+        recordPayment: (ids, amt, meth, ref) => setInvoices(prev => prev.map(inv => ids.includes(inv.id) ? { ...inv, paidAmount: (inv.paidAmount||0) + amt, status: (inv.paidAmount||0) + amt >= inv.amount ? 'Paid' : 'Partial' } : inv)),
+        payBill: (id, amt) => setBills(prev => prev.map(b => b.id === id ? { ...b, paidAmount: b.paidAmount + amt, status: 'Paid' } : b)),
+        addBill: (b) => setBills(prev => [b, ...prev]),
+        addExpense: (e) => setExpenses(prev => [e, ...prev]),
+        updateTarget: (y, m, b, c, a) => setPlanningConfig(p => ({ ...p, targets: { ...p.targets, [`${y}-${String(m).padStart(2, '0')}|${b}|${c}`]: a } })),
+        updateMargin: (b, m) => setPlanningConfig(p => ({ ...p, margins: { ...p.margins, [b]: m } })),
+        updateStockCover: (b, c, m) => setPlanningConfig(p => ({ ...p, targetStockCover: { ...p.targetStockCover, [`${b}|${c}`]: m } })),
+        saveMarkdown: (id, price) => setProducts(prev => prev.map(p => p.id === id ? { ...p, markdownPrice: price > 0 ? price : undefined } : p)),
+        editRecord: (r) => setHistory(prev => prev.map(h => h.id === r.id ? r : h)),
+        deleteRecord: (id) => setHistory(prev => prev.filter(h => h.id !== id)),
+        bulkDeleteRecords: (ids) => setHistory(prev => prev.filter(h => !ids.includes(h.id))),
+        importData: (type, data) => type === 'sales' ? setHistory(p => [...data, ...p]) : type === 'stores' ? setStores(p => [...data, ...p]) : setProducts(p => [...data, ...p]),
+        resetData: handleReset
       }
     }}>
       {children}
@@ -370,8 +248,6 @@ export const ERPProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 export const useERP = () => {
   const context = useContext(ERPContext);
-  if (!context) {
-    throw new Error('useERP must be used within an ERPProvider');
-  }
+  if (!context) throw new Error('useERP must be used within an ERPProvider');
   return context;
 };

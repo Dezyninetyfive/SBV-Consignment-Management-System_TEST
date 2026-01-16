@@ -1,17 +1,19 @@
-
 import React, { useState, useMemo } from 'react';
-import { StockMovement } from '../types';
+import { StockMovement, StoreProfile } from '../types';
 import { Search, Filter, ArrowUpRight, ArrowDownLeft, PlusCircle, Printer, FileText, CreditCard } from 'lucide-react';
+import { ConsignmentNoteModal } from './ConsignmentNoteModal';
+import { useERP } from '../contexts/ERPContext';
 
 interface Props {
   movements: StockMovement[];
   onAddTransaction?: () => void;
-  onPrintDO?: (reference: string) => void;
 }
 
-export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction, onPrintDO }) => {
+export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction }) => {
+  const { stores } = useERP();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
+  const [printRef, setPrintRef] = useState<string | null>(null);
 
   const filteredMovements = useMemo(() => {
     return movements.filter(m => {
@@ -20,9 +22,7 @@ export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction,
          m.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
          m.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
          (m.reference && m.reference.toLowerCase().includes(searchTerm.toLowerCase()));
-      
       const matchType = filterType === 'All' || m.type === filterType;
-
       return matchSearch && matchType;
     });
   }, [movements, searchTerm, filterType]);
@@ -48,7 +48,7 @@ export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction,
                 <select 
                    value={filterType}
                    onChange={(e) => setFilterType(e.target.value)}
-                   className="pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 appearance-none cursor-pointer"
+                   className="pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none appearance-none cursor-pointer"
                 >
                    <option value="All">All Types</option>
                    {movementTypes.map(t => <option key={t} value={t}>{t}</option>)}
@@ -56,16 +56,9 @@ export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction,
              </div>
           </div>
           
-          <div className="flex items-center gap-2 sm:gap-4">
-             <div className="text-xs text-slate-500 hidden sm:block">
-               {filteredMovements.length} records
-             </div>
-             
+          <div className="flex items-center gap-2">
              {onAddTransaction && (
-               <button 
-                 onClick={onAddTransaction}
-                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm transition-colors whitespace-nowrap"
-               >
+               <button onClick={onAddTransaction} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm">
                  <PlusCircle size={16} /> Record Transaction
                </button>
              )}
@@ -79,88 +72,60 @@ export const StockMovementLog: React.FC<Props> = ({ movements, onAddTransaction,
                    <tr>
                       <th className="px-6 py-4">Date</th>
                       <th className="px-6 py-4">Type</th>
-                      <th className="px-6 py-4">Store Outlet</th>
-                      <th className="px-6 py-4">Product Details</th>
-                      <th className="px-6 py-4 text-right">Quantity</th>
+                      <th className="px-6 py-4">Outlet</th>
+                      <th className="px-6 py-4">Product Detail</th>
+                      <th className="px-6 py-4 text-right">Qty</th>
                       <th className="px-6 py-4 text-right">Reference</th>
-                      <th className="px-6 py-4 text-center">Actions / Links</th>
+                      <th className="px-6 py-4 text-center">Docs</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                    {filteredMovements.map(m => (
                       <tr key={m.id} className="hover:bg-slate-50">
-                         <td className="px-6 py-4 font-mono text-xs">{m.date}</td>
+                         <td className="px-6 py-4 font-mono text-[10px]">{m.date}</td>
                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium border ${
-                               m.type === 'Sale' || m.type === 'Transfer Out' ? 'bg-red-50 text-red-700 border-red-100' :
-                               m.type === 'Restock' || m.type === 'Return' || m.type === 'Transfer In' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                               'bg-slate-50 text-slate-600 border-slate-100'
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
+                               m.type === 'Sale' || m.type === 'Transfer Out' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
                             }`}>
-                               {m.quantity > 0 ? <ArrowUpRight size={12} /> : <ArrowDownLeft size={12} />}
                                {m.type}
                             </span>
                          </td>
+                         <td className="px-6 py-4 font-medium text-slate-800">{m.storeName}</td>
                          <td className="px-6 py-4">
-                            <div className="font-medium text-slate-800">{m.storeName}</div>
-                         </td>
-                         <td className="px-6 py-4">
-                            <div className="text-slate-800 font-medium">{m.productName}</div>
-                            <div className="text-xs text-slate-400 font-mono flex gap-2">
-                               <span>{m.sku}</span>
-                               <span className="text-slate-300">|</span>
-                               <span className="text-indigo-600 font-medium">{m.variant}</span>
-                            </div>
+                            <div className="font-bold text-slate-900">{m.productName}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">{m.sku} | {m.variant}</div>
                          </td>
                          <td className={`px-6 py-4 text-right font-bold ${m.quantity > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                             {m.quantity > 0 ? '+' : ''}{m.quantity}
                          </td>
-                         <td className="px-6 py-4 text-right font-mono text-xs text-slate-500">
-                            {m.reference || '-'}
-                         </td>
+                         <td className="px-6 py-4 text-right font-mono text-xs text-slate-400">{m.reference || '-'}</td>
                          <td className="px-6 py-4 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                               {m.linkedSaleId && (
-                                  <div className="group relative">
-                                     <div className="p-1.5 text-indigo-600 bg-indigo-50 rounded-full cursor-help">
-                                        <FileText size={14} />
-                                     </div>
-                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                                        Linked Sales Record
-                                     </div>
-                                  </div>
-                               )}
-                               {m.linkedInvoiceId && (
-                                  <div className="group relative">
-                                     <div className={`p-1.5 rounded-full cursor-help ${m.type === 'Return' ? 'text-red-600 bg-red-50' : 'text-emerald-600 bg-emerald-50'}`}>
-                                        <CreditCard size={14} />
-                                     </div>
-                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                                        {m.type === 'Return' ? 'Linked Credit Note' : 'Linked Invoice'}
-                                     </div>
-                                  </div>
-                               )}
-                               {onPrintDO && m.reference && (m.type === 'Transfer Out' || m.type === 'Transfer In' || m.type === 'Restock') && (
-                                 <button 
-                                   onClick={() => onPrintDO(m.reference!)}
-                                   className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors"
-                                   title="Print Delivery Order / Note"
-                                 >
+                            <div className="flex items-center justify-center gap-1">
+                               {m.reference && (
+                                 <button onClick={() => setPrintRef(m.reference!)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full" title="Print Note">
                                    <Printer size={16} />
                                  </button>
                                )}
+                               {/* Fix: Wrapped CreditCard icon in a span to use the title attribute, as Lucide components don't support it directly */}
+                               {m.linkedInvoiceId && <span title="Financial Link OK"><CreditCard size={14} className="text-emerald-500" /></span>}
                             </div>
                          </td>
                       </tr>
                    ))}
-                   {filteredMovements.length === 0 && (
-                      <tr>
-                         <td colSpan={7} className="p-8 text-center text-slate-400">No stock movements found.</td>
-                      </tr>
-                   )}
                 </tbody>
              </table>
           </div>
        </div>
+
+       {printRef && (
+          <ConsignmentNoteModal 
+            isOpen={true} 
+            onClose={() => setPrintRef(null)} 
+            reference={printRef} 
+            movements={movements} 
+            stores={stores} 
+          />
+       )}
     </div>
   );
 };

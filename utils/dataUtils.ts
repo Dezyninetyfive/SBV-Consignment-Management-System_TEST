@@ -12,10 +12,10 @@ const CITIES_BY_REGION: Record<string, string[]> = {
   'East': ['Pattaya', 'Chonburi', 'Rayong']
 };
 
-// Generate 170 distinct stores with rich metadata
+// Reduced STORE_COUNT to prevent QuotaExceededError
 export const generateMockStores = (): StoreProfile[] => {
   const stores: StoreProfile[] = [];
-  const STORE_COUNT = 170;
+  const STORE_COUNT = 45; // Reduced from 170
   const types = ['Department Store', 'Plaza', 'Mart', 'Gallery', 'Boutique', 'Outlet'];
 
   for (let i = 1; i <= STORE_COUNT; i++) {
@@ -25,27 +25,16 @@ export const generateMockStores = (): StoreProfile[] => {
     const type = types[Math.floor(Math.random() * types.length)];
     const group = RETAIL_GROUPS[Math.floor(Math.random() * RETAIL_GROUPS.length)];
     
-    // Assign Brands (Logic: Some have 1, some 2, some 3)
     const assignedBrands: string[] = [];
     const shuffledBrands = [...SAMPLE_BRANDS].sort(() => Math.random() - 0.5);
-    
-    // Ensure at least one brand
     assignedBrands.push(shuffledBrands[0]);
+    if (Math.random() > 0.4) assignedBrands.push(shuffledBrands[1]);
     
-    // Chance for 2nd brand (70%)
-    if (Math.random() > 0.3) assignedBrands.push(shuffledBrands[1]);
-    
-    // Chance for 3rd brand (40% if already has 2)
-    if (assignedBrands.length === 2 && Math.random() > 0.6) assignedBrands.push(shuffledBrands[2]);
-    
-    // Assign Margins
     const margins: Record<string, number> = {};
     assignedBrands.forEach(b => {
-      // Random margin between 20% and 35%
       margins[b] = 20 + Math.floor(Math.random() * 16); 
     });
 
-    // Credit Terms
     const term = CREDIT_TERMS[Math.floor(Math.random() * CREDIT_TERMS.length)];
     
     stores.push({
@@ -54,7 +43,7 @@ export const generateMockStores = (): StoreProfile[] => {
       group,
       region,
       city,
-      state: region, // Simplifying state to match region for mock
+      state: region,
       address: `${Math.floor(Math.random() * 999) + 1} Main Street, District ${Math.floor(Math.random() * 20) + 1}`,
       postalCode: `${Math.floor(10000 + Math.random() * 90000)}`,
       carriedBrands: assignedBrands.sort(),
@@ -66,7 +55,6 @@ export const generateMockStores = (): StoreProfile[] => {
   return stores;
 };
 
-// Generate Sales History BASED ON the generated stores
 export const generateMockHistory = (stores: StoreProfile[]): SaleRecord[] => {
   const records: SaleRecord[] = [];
   const today = new Date();
@@ -75,30 +63,24 @@ export const generateMockHistory = (stores: StoreProfile[]): SaleRecord[] => {
 
   stores.forEach(store => {
     store.carriedBrands.forEach(brand => {
-      // Base monthly average logic
-      let baseVal = 3000 + Math.random() * 5000;
-      
+      let baseVal = 4000 + Math.random() * 4000;
       if (brand === 'Domino') baseVal *= 1.2; 
       if (brand === "O'Dear") baseVal *= 0.8; 
 
       for (let y = startYear; y < currentYear; y++) {
         for (let m = 0; m < 12; m++) {
           const date = new Date(y, m, 1);
-          
           let seasonality = 1.0;
-          if (m === 11 || m === 10) seasonality = 1.5; 
+          if (m === 11 || m === 10) seasonality = 1.4; 
           if (m === 0) seasonality = 0.9; 
-          if (brand === "O'Dear" && (m === 7 || m === 8)) seasonality *= 1.3; 
 
-          const randomFactor = 0.85 + Math.random() * 0.3; 
-          const amount = Math.floor(baseVal * seasonality * randomFactor);
-          
+          const randomFactor = 0.9 + Math.random() * 0.2; 
           records.push({
             id: `${brand}-${store.id}-${y}-${m}`,
             date: date.toISOString().split('T')[0],
             brand,
             counter: store.name, 
-            amount
+            amount: Math.floor(baseVal * seasonality * randomFactor)
           });
         }
       }
@@ -108,9 +90,8 @@ export const generateMockHistory = (stores: StoreProfile[]): SaleRecord[] => {
   return records;
 };
 
-// NEW: Generate Suppliers
 export const generateMockSuppliers = (): Supplier[] => {
-  const names = ['FabriCo Ltd', 'Textile Giants', 'Global Sourcing Partners', 'Elite Garments', 'Local Threads Inc', 'Vogue Manufacturing'];
+  const names = ['FabriCo Ltd', 'Textile Giants', 'Global Sourcing', 'Elite Garments'];
   return names.map((name, i) => ({
     id: `sup-${i + 1}`,
     name,
@@ -118,28 +99,22 @@ export const generateMockSuppliers = (): Supplier[] => {
     email: `contact@${name.replace(/ /g, '').toLowerCase()}.com`,
     phone: `+60 3-${Math.floor(Math.random() * 8999) + 1000}`,
     paymentTerms: [30, 45, 60][Math.floor(Math.random() * 3)],
-    leadTime: [7, 14, 21, 30][Math.floor(Math.random() * 4)],
+    leadTime: [7, 14, 21][Math.floor(Math.random() * 3)],
     address: `Industrial Park Zone ${i + 1}, Kuala Lumpur`
   }));
 };
 
-// Generate Vendor Bills (Accounts Payable)
 export const generateMockBills = (suppliers: Supplier[]): VendorBill[] => {
   const bills: VendorBill[] = [];
   const today = new Date();
-
   suppliers.forEach(sup => {
-    // Generate 2-5 bills per supplier
-    const count = Math.floor(Math.random() * 4) + 2;
+    const count = 2;
     for(let i=0; i<count; i++) {
-      const daysAgo = Math.floor(Math.random() * 45);
+      const daysAgo = Math.floor(Math.random() * 30);
       const billDate = new Date(today.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
       const dueDate = new Date(billDate);
       dueDate.setDate(dueDate.getDate() + sup.paymentTerms);
-      
-      const amount = 5000 + Math.floor(Math.random() * 20000);
-      const isPaid = Math.random() > 0.4; // 60% unpaid/partial
-
+      const amount = 8000 + Math.floor(Math.random() * 10000);
       bills.push({
         id: `bill-${sup.id}-${i}`,
         supplierId: sup.id,
@@ -147,8 +122,8 @@ export const generateMockBills = (suppliers: Supplier[]): VendorBill[] => {
         billDate: billDate.toISOString().split('T')[0],
         dueDate: dueDate.toISOString().split('T')[0],
         amount,
-        paidAmount: isPaid ? amount : (Math.random() > 0.7 ? amount * 0.5 : 0),
-        status: isPaid ? 'Paid' : (dueDate < today ? 'Overdue' : 'Unpaid'),
+        paidAmount: Math.random() > 0.5 ? amount : 0,
+        status: Math.random() > 0.5 ? 'Paid' : 'Unpaid',
         reference: `INV-${sup.name.substring(0,3).toUpperCase()}-${1000+i}`,
         category: 'COGS'
       });
@@ -157,22 +132,17 @@ export const generateMockBills = (suppliers: Supplier[]): VendorBill[] => {
   return bills;
 };
 
-// Generate Expenses
 export const generateMockExpenses = (stores: StoreProfile[]): Expense[] => {
   const expenses: Expense[] = [];
   const today = new Date();
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
-
-  // 1. Corporate Fixed Expenses (Last 3 months)
   const corpExpenses = [
-    { cat: 'Salaries', amount: 80000, desc: 'HQ Payroll' },
-    { cat: 'Rent', amount: 15000, desc: 'HQ Office Rent' },
-    { cat: 'Software', amount: 2000, desc: 'ERP Subscription' },
-    { cat: 'Marketing', amount: 25000, desc: 'Digital Ads Campaign' }
+    { cat: 'Salaries', amount: 50000, desc: 'HQ Payroll' },
+    { cat: 'Rent', amount: 10000, desc: 'HQ Office' },
+    { cat: 'Marketing', amount: 15000, desc: 'Social Ads' }
   ];
-
-  for(let i=0; i<3; i++) {
+  for(let i=0; i<2; i++) {
     const d = new Date(currentYear, currentMonth - i, 1);
     corpExpenses.forEach((exp, idx) => {
       expenses.push({
@@ -185,78 +155,34 @@ export const generateMockExpenses = (stores: StoreProfile[]): Expense[] => {
       });
     });
   }
-
-  // 2. Store Specific Expenses (e.g. Counter Rent / PC Commission if applicable)
-  // We'll just generate a few random ones for the current month
-  const randomStores = stores.sort(() => 0.5 - Math.random()).slice(0, 10);
-  randomStores.forEach((s, idx) => {
-    expenses.push({
-      id: `exp-store-${idx}`,
-      date: today.toISOString().split('T')[0],
-      category: 'Rent',
-      description: `Counter Rent - ${s.name}`,
-      amount: 2000 + Math.random() * 3000,
-      isRecurring: true,
-      storeId: s.id,
-      storeName: s.name
-    });
-  });
-
   return expenses;
 };
 
-// NEW: Generate Product Catalog with Attributes
 export const generateMockProducts = (suppliers: Supplier[] = []): Product[] => {
   const products: Product[] = [];
   let idCounter = 1;
-
-  const COLORS = ['Red', 'Blue', 'Black', 'White', 'Beige', 'Navy', 'Olive'];
-  const SIZES = ['S', 'M', 'L', 'XL'];
-  const FABRICS = ['Cotton', 'Polyester', 'Linen', 'Denim', 'Silk Blend'];
-  const NECKLINES = ['Crew', 'V-Neck', 'Collared', 'Boat'];
-  const FITS = ['Slim', 'Regular', 'Oversized'];
-
+  const COLORS = ['Red', 'Black', 'White', 'Navy'];
+  const SIZES = ['S', 'M', 'L'];
   SAMPLE_BRANDS.forEach(brand => {
     const categories = PRODUCT_CATEGORIES[brand as keyof typeof PRODUCT_CATEGORIES] || [];
-    categories.forEach(cat => {
-      // Generate 5 products per category
-      for (let i = 1; i <= 5; i++) {
-        const cost = 20 + Math.random() * 80;
-        const price = cost * (2 + Math.random());
-        
-        // Generate Variants (Color + Size combinations)
+    categories.slice(0, 3).forEach(cat => {
+      for (let i = 1; i <= 3; i++) {
+        const cost = 20 + Math.random() * 40;
         const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-        const variants = SIZES.map(s => `${color}-${s}`);
-        
-        const supplier = suppliers.length > 0 ? suppliers[Math.floor(Math.random() * suppliers.length)] : undefined;
-        const fabric = FABRICS[Math.floor(Math.random() * FABRICS.length)];
-        const fit = FITS[Math.floor(Math.random() * FITS.length)];
-
         products.push({
           id: `p-${idCounter}`,
           sku: `${brand.substring(0,3).toUpperCase()}-${cat.substring(0,3).toUpperCase()}-00${i}`,
-          name: `${brand} ${cat} Style #${i} (${color})`,
-          description: `High-quality ${fabric.toLowerCase()} ${cat.toLowerCase()} featuring a ${fit.toLowerCase()} fit. Perfect for casual or semi-formal occasions. Available in ${color}.`,
+          name: `${brand} ${cat} Style #${i}`,
           brand,
           category: cat,
           subCategory: 'General',
           cost: Math.floor(cost * 100) / 100,
-          price: Math.floor(price * 100) / 100,
-          imageUrl: `https://placehold.co/400x500/f1f5f9/475569?text=${brand}+${cat}+${i}`,
-          variants: variants,
-          supplierId: supplier?.id,
-          supplierName: supplier?.name,
-          attributes: {
-            fabric: fabric,
-            neckline: NECKLINES[Math.floor(Math.random() * NECKLINES.length)],
-            fit: fit,
-            gender: brand === 'Domino' ? 'Men' : brand === 'OTTO' ? 'Women' : 'Kids',
-            season: Math.random() > 0.5 ? 'SS24' : 'FW24'
-          },
-          inventoryPlanning: {
-            reorderPoint: Math.floor(Math.random() * 20) + 5,
-            safetyStock: Math.floor(Math.random() * 10) + 2
-          }
+          price: Math.floor(cost * 2.5 * 100) / 100,
+          imageUrl: `https://placehold.co/400x500/f1f5f9/475569?text=${brand}+${cat}`,
+          variants: SIZES.map(s => `${color}-${s}`),
+          supplierId: suppliers[0]?.id,
+          supplierName: suppliers[0]?.name,
+          inventoryPlanning: { reorderPoint: 10, safetyStock: 5 }
         });
         idCounter++;
       }
@@ -265,193 +191,92 @@ export const generateMockProducts = (suppliers: Supplier[] = []): Product[] => {
   return products;
 };
 
-// NEW: Generate Inventory Levels for Stores
 export const generateMockInventory = (stores: StoreProfile[], products: Product[]): InventoryItem[] => {
   const inventory: InventoryItem[] = [];
-  
   stores.forEach(store => {
     store.carriedBrands.forEach(brand => {
-      // Find products for this brand
       const brandProducts = products.filter(p => p.brand === brand);
-      
-      // Randomly select some products to be in stock (80% of catalog)
-      brandProducts.forEach(prod => {
-        if (Math.random() > 0.2) {
-          const totalQty = Math.floor(Math.random() * 50); // 0 to 50 units
-          
-          // Distribute quantity across variants
-          const variantQuantities: Record<string, number> = {};
-          if (totalQty > 0 && prod.variants.length > 0) {
-            let remaining = totalQty;
-            prod.variants.forEach((v, index) => {
-              if (index === prod.variants.length - 1) {
-                variantQuantities[v] = remaining;
-              } else {
-                const qty = Math.floor(Math.random() * (remaining + 1));
-                variantQuantities[v] = qty;
-                remaining -= qty;
-              }
-            });
-          } else if (totalQty > 0) {
-             variantQuantities['Standard'] = totalQty;
-          }
-
-          inventory.push({
-            id: `inv-${store.id}-${prod.id}`,
-            storeId: store.id,
-            storeName: store.name,
-            productId: prod.id,
-            sku: prod.sku,
-            productName: prod.name,
-            brand: prod.brand,
-            quantity: totalQty,
-            variantQuantities
-          });
-        }
+      brandProducts.slice(0, 5).forEach(prod => {
+        const totalQty = 10 + Math.floor(Math.random() * 30);
+        inventory.push({
+          id: `inv-${store.id}-${prod.id}`,
+          storeId: store.id,
+          storeName: store.name,
+          productId: prod.id,
+          sku: prod.sku,
+          productName: prod.name,
+          brand: prod.brand,
+          quantity: totalQty,
+          variantQuantities: { [prod.variants[0]]: totalQty }
+        });
       });
     });
   });
   return inventory;
 };
 
-// NEW: Generate Stock Movement Log
 export const generateMockStockMovements = (inventory: InventoryItem[], products: Product[]): StockMovement[] => {
   const movements: StockMovement[] = [];
-  const today = new Date();
-
-  // Create random movements for the last 30 days
-  inventory.forEach(inv => {
-    // 1. Initial Restock (30 days ago)
+  inventory.slice(0, 50).forEach(inv => {
     movements.push({
        id: `mov-restock-${inv.id}`,
-       date: new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
+       date: '2023-11-01',
        type: 'Restock',
        storeId: inv.storeId,
        storeName: inv.storeName,
        productId: inv.productId,
        productName: inv.productName,
        sku: inv.sku,
-       variant: 'Multiple',
-       quantity: inv.quantity + Math.floor(Math.random() * 10), // Was slightly higher before sales
-       reference: 'PO-BATCH-01'
+       variant: 'Standard',
+       quantity: inv.quantity,
+       reference: 'PO-INITIAL'
     });
-
-    // 2. Simulate random sales transactions over the last month
-    const salesCount = Math.floor(Math.random() * 5);
-    for(let i=0; i<salesCount; i++) {
-       const daysAgo = Math.floor(Math.random() * 25);
-       const qtySold = Math.floor(Math.random() * 2) + 1;
-       const variant = Object.keys(inv.variantQuantities)[0] || 'Standard'; // Simplified
-
-       movements.push({
-         id: `mov-sale-${inv.id}-${i}`,
-         date: new Date(today.getTime() - (daysAgo * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
-         type: 'Sale',
-         storeId: inv.storeId,
-         storeName: inv.storeName,
-         productId: inv.productId,
-         productName: inv.productName,
-         sku: inv.sku,
-         variant: variant,
-         quantity: -qtySold,
-         reference: `POS-${Math.floor(Math.random() * 10000)}`
-       });
-    }
-
-    // 3. Occasional Transfer Out (5% chance)
-    if(Math.random() > 0.95) {
-       movements.push({
-         id: `mov-transfer-${inv.id}`,
-         date: new Date(today.getTime() - (5 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
-         type: 'Transfer Out',
-         storeId: inv.storeId,
-         storeName: inv.storeName,
-         productId: inv.productId,
-         productName: inv.productName,
-         sku: inv.sku,
-         variant: 'Standard',
-         quantity: -5,
-         reference: 'TR-AUTO'
-       });
-    }
   });
-
-  return movements.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return movements;
 };
 
-// Generate AR Invoices from Stores
 export const generateMockInvoices = (stores: StoreProfile[]): Invoice[] => {
   const invoices: Invoice[] = [];
   const today = new Date();
-
-  stores.forEach(store => {
-    // Generate 1-3 open invoices per store
-    const count = Math.floor(Math.random() * 3) + 1;
-    
-    for (let i = 0; i < count; i++) {
-      const daysAgo = Math.floor(Math.random() * 60) + 10;
-      const issueDate = new Date(today.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
-      
-      const dueDate = new Date(issueDate);
+  stores.slice(0, 20).forEach(store => {
+      const brand = store.carriedBrands[0];
+      const amount = 5000 + Math.floor(Math.random() * 5000);
+      const dueDate = new Date(today);
       dueDate.setDate(dueDate.getDate() + store.creditTerm);
-      
-      const brand = store.carriedBrands[i % store.carriedBrands.length];
-      const amount = 5000 + Math.floor(Math.random() * 15000);
-      
-      // Random payment status
-      const paid = Math.random() > 0.5 ? 0 : amount * (Math.random() * 0.8);
-      const status = paid >= amount ? 'Paid' : paid > 0 ? 'Partial' : (dueDate < today ? 'Overdue' : 'Unpaid');
-
-      if (status !== 'Paid') {
-        invoices.push({
-          id: `inv-${store.id}-${i}`,
-          storeId: store.id,
-          storeName: store.name,
-          brand,
-          amount,
-          paidAmount: paid,
-          issueDate: issueDate.toISOString().split('T')[0],
-          dueDate: dueDate.toISOString().split('T')[0],
-          status,
-          payments: paid > 0 ? [{
-             id: `pay-${store.id}-${i}`,
-             date: new Date(issueDate.getTime() + (10 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0],
-             amount: paid,
-             method: 'Bank Transfer',
-             reference: 'TRX-999'
-          }] : []
-        });
-      }
-    }
+      invoices.push({
+        id: `inv-${store.id}-1`,
+        storeId: store.id,
+        storeName: store.name,
+        brand,
+        amount,
+        paidAmount: 0,
+        issueDate: today.toISOString().split('T')[0],
+        dueDate: dueDate.toISOString().split('T')[0],
+        status: 'Unpaid',
+        payments: []
+      });
   });
   return invoices;
 };
 
-// Basic aggregation
 export const aggregateByTime = (data: (SaleRecord | ForecastRecord)[], segmentBy: 'brand' | 'counter') => {
   const agg: Record<string, AggregatedData> = {};
-  
   data.forEach(d => {
     let timeKey: string;
     let amount: number;
     let segmentKey: string;
-
     if ('date' in d) {
-      // SaleRecord
-      timeKey = d.date.substring(0, 7); // YYYY-MM
+      timeKey = d.date.substring(0, 7);
       amount = d.amount;
       segmentKey = segmentBy === 'brand' ? d.brand : d.counter;
     } else {
-      // ForecastRecord
       timeKey = d.month;
       amount = d.forecastAmount;
       segmentKey = segmentBy === 'brand' ? d.brand : d.counter;
     }
-
     if (!agg[timeKey]) agg[timeKey] = { name: timeKey };
     agg[timeKey][segmentKey] = ((agg[timeKey][segmentKey] as number) || 0) + amount;
   });
-
   return Object.values(agg).sort((a, b) => a.name.localeCompare(b.name));
 };
 
@@ -470,7 +295,6 @@ export const getMonthlyHistory = (history: SaleRecord[], brand: string, counter:
 export const aggregateSalesByDimension = (history: SaleRecord[], stores: StoreProfile[], dimension: 'region' | 'group') => {
   const storeMap = new Map<string, StoreProfile>(stores.map(s => [s.name, s] as [string, StoreProfile]));
   const agg: Record<string, number> = {};
-
   history.forEach(r => {
     const store = storeMap.get(r.counter);
     if (store) {
@@ -478,7 +302,6 @@ export const aggregateSalesByDimension = (history: SaleRecord[], stores: StorePr
       agg[key] = (agg[key] || 0) + r.amount;
     }
   });
-
   return Object.entries(agg)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value);
